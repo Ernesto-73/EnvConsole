@@ -99,6 +99,7 @@
     <None Include="res\EnvConsole.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AddDialog.h" />
     <ClInclude Include="EnvConsole.h" />
     <ClInclude Include="EnvConsoleDlg.h" />
     <ClInclude Include="Resource.h" />
@@ -106,6 +107,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AddDialog.cpp" />
     <ClCompile Include="EnvConsole.cpp" />
     <ClCompile Include="EnvConsoleDlg.cpp" />
     <ClCompile Include="stdafx.cpp">

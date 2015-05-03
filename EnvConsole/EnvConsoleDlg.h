@@ -11,6 +11,8 @@
 enum{TYPE_TARGET = 0, TYPE_RADAR, TYPE_MOUNTAIN};
 enum{STATE_DISCONNECTED = 0, STATE_CONNECTED};
 
+
+
 typedef struct TLocation{
 	TLocation()
 	{
@@ -139,4 +141,25 @@ public:
 	CRect m_large;
 	CRect m_small;
 	CButton m_btnDetails;
+	CButton m_btnStart;
+	CButton m_btnConnectAll;
+	CButton m_btnDisconnect;
+	bool m_bIsAllConnected;
+	afx_msg void OnBnClickedDisconnect();
+	bool m_bIsStarted;
+	afx_msg void OnBnClickedAdd();
+	int m_iMapScale;
+	CSliderCtrl m_sliderMapScale;
+	afx_msg void OnNMCustomdrawMapScale(NMHDR *pNMHDR, LRESULT *pResult);
+	int m_iScaleType;
+	double m_ClutterRCS;
+	double m_Coff;
+	CComboBox m_comboClutterType;
+	CComboBox m_comboTime;
+	int m_EnvDis;
+	CSliderCtrl m_SliderEnvDis;
+	afx_msg void OnNMCustomdrawEnvDis(NMHDR *pNMHDR, LRESULT *pResult);
+	CSliderCtrl m_SliderEleInterf;
+	int m_EleInterf;
+	afx_msg void OnNMCustomdrawEleInterf(NMHDR *pNMHDR, LRESULT *pResult);
 };

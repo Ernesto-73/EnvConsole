@@ -6,7 +6,7 @@
 #include "EnvConsole.h"
 #include "EnvConsoleDlg.h"
 #include "afxdialogex.h"
-
+#include "AddDialog.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -14,11 +14,6 @@
 
 
 // CAboutDlg dialog used for App About
-int genRand(int min, int max)
-{
-	 srand( (unsigned int)time(0));
-	 return rand() % (max + 1 - min) + min;
-}
 class CAboutDlg : public CDialogEx
 {
 public:
@@ -50,12 +45,17 @@ END_MESSAGE_MAP()
 
 // CEnvConsoleDlg dialog
 
-
-
-
 CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CEnvConsoleDlg::IDD, pParent)
 	, m_time(0)
+	, m_bIsAllConnected(false)
+	, m_bIsStarted(false)
+	, m_iMapScale(0)
+	, m_iScaleType(0)
+	, m_ClutterRCS(0)
+	, m_Coff(0)
+	, m_EnvDis(0)
+	, m_EleInterf(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_strType[0] = "Target";
@@ -75,6 +75,25 @@ void CEnvConsoleDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_LIST, m_list);
 	DDX_Control(pDX, IDC_SEPERATOR, m_seperator);
 	DDX_Control(pDX, IDC_DETAILS, m_btnDetails);
+	DDX_Control(pDX, ID_START, m_btnStart);
+	DDX_Control(pDX, IDC_CONN_ALL, m_btnConnectAll);
+	DDX_Control(pDX, IDC_DISCONNECT, m_btnDisconnect);
+	DDX_Slider(pDX, IDC_MAP_SCALE, m_iMapScale);
+	DDV_MinMaxInt(pDX, m_iMapScale, 100, 2000);
+	DDX_Control(pDX, IDC_MAP_SCALE, m_sliderMapScale);
+	DDX_Radio(pDX, IDC_SCALE_TYPE_1, m_iScaleType);
+	DDX_Text(pDX, IDC_CLUTTER_RCS, m_ClutterRCS);
+	DDV_MinMaxDouble(pDX, m_ClutterRCS, 0, 10);
+	DDX_Text(pDX, IDC_COFF, m_Coff);
+	DDV_MinMaxDouble(pDX, m_Coff, 0, 10);
+	DDX_Control(pDX, IDC_COMBO_CLUTTER, m_comboClutterType);
+	DDX_Control(pDX, IDC_COMBO_TIME, m_comboTime);
+	DDX_Slider(pDX, IDC_ENV_DIS, m_EnvDis);
+	DDV_MinMaxInt(pDX, m_EnvDis, 0, 2000);
+	DDX_Control(pDX, IDC_ENV_DIS, m_SliderEnvDis);
+	DDX_Control(pDX, IDC_ELE_INTERF, m_SliderEleInterf);
+	DDX_Slider(pDX, IDC_ELE_INTERF, m_EleInterf);
+	DDV_MinMaxInt(pDX, m_EleInterf, 0, 2000);
 }
 
 BEGIN_MESSAGE_MAP(CEnvConsoleDlg, CDialogEx)
@@ -87,6 +106,11 @@ BEGIN_MESSAGE_MAP(CEnvConsoleDlg, CDialogEx)
 	ON_WM_TIMER()
 	ON_WM_ERASEBKGND()
 	ON_BN_CLICKED(IDC_DETAILS, &CEnvConsoleDlg::OnBnClickedDetails)
+	ON_BN_CLICKED(IDC_DISCONNECT, &CEnvConsoleDlg::OnBnClickedDisconnect)
+	ON_BN_CLICKED(IDC_ADD, &CEnvConsoleDlg::OnBnClickedAdd)
+	ON_NOTIFY(NM_CUSTOMDRAW, IDC_MAP_SCALE, &CEnvConsoleDlg::OnNMCustomdrawMapScale)
+	ON_NOTIFY(NM_CUSTOMDRAW, IDC_ENV_DIS, &CEnvConsoleDlg::OnNMCustomdrawEnvDis)
+	ON_NOTIFY(NM_CUSTOMDRAW, IDC_ELE_INTERF, &CEnvConsoleDlg::OnNMCustomdrawEleInterf)
 END_MESSAGE_MAP()
 
 
@@ -123,7 +147,6 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 
 	// TODO: Add extra initialization here
 	
-	CenterWindow();
 	m_seperator.MoveWindow(520, 5, 2, 550);
 //	m_list.Create(LVS_REPORT | LVS_NOLABELWRAP | LVS_SHOWSELALWAYS, CRect(0, 0, 200, 500), this, 123);
 	CRect r(530, 10, 530 + 425, 310);
@@ -146,7 +169,7 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	double vx = -0.6 * v;
 	double vy = 0.8 * v;
 	double vz = 0;
-	Target t(421,87,100, vx, vy, 0);
+	Target t(421., 87., 100., vx, vy, 0);
 	m_targets.push_back(t);
 
 	m_iStaticIdx.push_back(m_components.size());
@@ -158,7 +181,48 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	m_iStaticIdx.push_back(m_components.size());
 	m_components.push_back(TComponent(5, 2, TLocation(450, 197), 0, CString("--"), 0));
 	UpdateList();
+
 	this->MoveWindow(&m_small);
+	CenterWindow();
+
+	m_btnDisconnect.EnableWindow(FALSE);
+
+	for(int i = 1;i < 10;i++)
+	{
+		CString t;
+		t.Format("%d", i * 100);
+		m_comboTime.AddString(t);
+	}
+	m_comboTime.SelectString(0, "100");
+
+	m_comboClutterType.AddString("Land");
+	m_comboClutterType.AddString("Ocean");
+	m_comboClutterType.AddString("Rain");
+	m_comboClutterType.AddString("Mountain");	
+	m_comboClutterType.SelectString(0, "Land");
+
+	// DDX variable initial.
+	m_sliderMapScale.SetRange(100, 2000);
+	m_iMapScale = 1000;
+	CString str;
+	str.Format("%d", m_iMapScale);
+	GetDlgItem(IDC_MAP_SCALE_T)->SetWindowTextA(str);
+
+	m_SliderEnvDis.SetRange(0, 1000);
+	m_EnvDis = 190;
+	double tmp = m_EnvDis / 100.;
+	str.Format("%.2lf", tmp);
+	GetDlgItem(IDC_ENV_DIS_T)->SetWindowTextA(str);
+
+	m_SliderEleInterf.SetRange(0, 1000);
+	m_EleInterf = 143;
+	tmp = m_EleInterf / 100.;
+	str.Format("%.2lf", tmp);
+	GetDlgItem(IDC_ELE_INTERF_T)->SetWindowTextA(str);
+
+	m_ClutterRCS = 1.84;
+	m_Coff = 0.67;
+	UpdateData(FALSE);
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -244,22 +308,23 @@ void CEnvConsoleDlg::OnBnClickedConnAll()
 	// TODO: Add your control notification handler code here
 
 	// Connect to radar components
+	m_bIsAllConnected = true;
+	m_socket.clear();
 	for(int i = 0;i < (int)m_iRadarIdx.size();i++)
 	{
 		int idx = m_iRadarIdx[i];
 		SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
 		if(INVALID_SOCKET == sock)
-		{
-			MessageBox("Create socket failed.");
-			return ;
-		}
+			continue;
 		SOCKADDR_IN addrSrv;
 		addrSrv.sin_addr.S_un.S_addr = inet_addr(m_components[idx].ip);
 		addrSrv.sin_family = AF_INET;
 		addrSrv.sin_port = htons(m_components[idx].host);
-		if(!connect(sock, (SOCKADDR *)&addrSrv, sizeof(SOCKADDR)))
-			m_components[idx].state = 1;
 
+		if(!connect(sock, (SOCKADDR *)&addrSrv, sizeof(SOCKADDR)))
+			m_components[idx].state = STATE_CONNECTED;
+		else 
+			m_bIsAllConnected = false;
 		m_socket.push_back(sock);
 	}
 
@@ -277,6 +342,19 @@ void CEnvConsoleDlg::OnBnClickedConnAll()
 		m_components[idx].state = 1;
 	}
 	UpdateList();
+	if(m_bIsAllConnected)
+	{
+		m_btnConnectAll.EnableWindow(FALSE);
+		m_btnDisconnect.EnableWindow(TRUE);
+	}
+	else{
+		CString str;
+		m_btnDetails.GetWindowTextA(str);
+		if(str == "Details")
+			PostMessage(WM_COMMAND, MAKEWPARAM(IDC_DETAILS, BN_CLICKED), NULL);
+		MessageBox("Some components are not connected, simulator\ncannot run correctly.", "Warning", MB_OK|MB_ICONWARNING);
+		return ;
+	}
 }
 
 
@@ -482,20 +560,45 @@ void CEnvConsoleDlg::OnNMCustomdrawList(NMHDR *pNMHDR, LRESULT *pResult)
 void CEnvConsoleDlg::OnBnClickedStart()
 {
 	// TODO: Add your control notification handler code here
-	SetTimer(1, 100,NULL);
+	if(!m_bIsStarted)
+	{
+		if(!m_bIsAllConnected)
+		{
+			MessageBox("Some components are not connected, simulator\ncannot run correctly.", "Warning", MB_OK|MB_ICONWARNING);
+			return ;
+		}
+		SetTimer(1, 100, NULL);
+		m_bIsStarted = true;
+		m_btnStart.SetWindowTextA("Pause");
+		m_btnDisconnect.EnableWindow(FALSE);
+	}
+	else{
+		KillTimer(1);
+		m_bIsStarted = false;
+		m_btnStart.SetWindowTextA("Start");
+		m_btnDisconnect.EnableWindow(TRUE);
+	}
+
 }
-
-
 
 void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: Add your message handler code here and/or call default
 	for(int i = 0;i < (int)m_targets.size();++i)
 	{
-		char sendBuf[100]; 
-		sprintf_s(sendBuf, "%lf,%lf,%lf", m_targets[i].x / 2, m_targets[i].y / 2 , 0.);
-		send(m_socket[i], sendBuf, strlen(sendBuf) + 1, 0);
 		m_targets[i].Move();
+		char sendBuf[200]; 
+		sprintf_s(sendBuf, "%lf,%lf,%lf", m_targets[i].x, m_targets[i].y, 0.);
+		if(m_bIsAllConnected)
+		{
+			if(SOCKET_ERROR == send(m_socket[i], sendBuf, strlen(sendBuf) + 1, 0))
+			{
+				PostMessage(WM_COMMAND, MAKEWPARAM(ID_START, BN_CLICKED), NULL);
+				PostMessage(WM_COMMAND, MAKEWPARAM(IDC_DISCONNECT, BN_CLICKED), NULL);
+				MessageBox("Connection failed for unkonwn reason.", "Warning", MB_OK|MB_ICONWARNING);
+				return ;
+			}
+		}
 	}
 	m_time++;
 	InvalidateRect(&m_canvas);
@@ -519,12 +622,94 @@ void CEnvConsoleDlg::OnBnClickedDetails()
 	if(str == "Details")
 	{
 		this->MoveWindow(&m_large);
+		CenterWindow();
 		m_btnDetails.SetWindowTextA("Hide");
 	}
 	
 	if(str == "Hide")
 	{
 		this->MoveWindow(&m_small);
+		CenterWindow();
 		m_btnDetails.SetWindowTextA("Details");
 	}
+}
+
+
+void CEnvConsoleDlg::OnBnClickedDisconnect()
+{
+	// TODO: Add your control notification handler code here
+	//Disconnect from static components
+	m_bIsAllConnected = false;
+	m_socket.clear();
+	for(int i = 0;i < (int)m_iRadarIdx.size();i++)
+	{
+		int idx = m_iRadarIdx[i];
+		m_components[idx].state = STATE_DISCONNECTED;
+	}
+
+	// Disconnect from static components
+	for(int i = 0;i < (int)m_iStaticIdx.size();i++)
+	{
+		int idx = m_iStaticIdx[i];
+		m_components[idx].state = STATE_DISCONNECTED;
+	}
+
+	// Disconnect from target components
+	for(int i = 0;i < (int)m_iTargetIdx.size();i++)
+	{
+		int idx = m_iTargetIdx[i];
+		m_components[idx].state = STATE_DISCONNECTED;
+	}
+	UpdateList();
+	m_btnConnectAll.EnableWindow(TRUE);
+	m_btnDisconnect.EnableWindow(FALSE);
+}
+
+
+void CEnvConsoleDlg::OnBnClickedAdd()
+{
+	// TODO: Add your control notification handler code here
+	CAddDialog AddDlg;
+	AddDlg.DoModal();
+}
+
+
+void CEnvConsoleDlg::OnNMCustomdrawMapScale(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
+	// TODO: Add your control notification handler code here
+	*pResult = 0;
+	UpdateData(TRUE);
+	CString str;
+	str.Format("%d", m_iMapScale);
+	GetDlgItem(IDC_MAP_SCALE_T)->SetWindowTextA(str);
+	UpdateData(FALSE);
+}
+
+
+void CEnvConsoleDlg::OnNMCustomdrawEnvDis(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
+	// TODO: Add your control notification handler code here
+	*pResult = 0;
+	UpdateData(TRUE);
+	CString str;
+	double tmp = m_EnvDis / 100.;
+	str.Format("%.2lf", tmp);
+	GetDlgItem(IDC_ENV_DIS_T)->SetWindowTextA(str);
+	UpdateData(FALSE);
+}
+
+
+void CEnvConsoleDlg::OnNMCustomdrawEleInterf(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
+	// TODO: Add your control notification handler code here
+	*pResult = 0;
+	UpdateData(TRUE);
+	CString str;
+	double tmp = m_EleInterf / 100.;
+	str.Format("%.2lf", tmp);
+	GetDlgItem(IDC_ELE_INTERF_T)->SetWindowTextA(str);
+	UpdateData(FALSE);
 }
