@@ -164,7 +164,7 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	m_iTargetIdx.push_back(m_components.size());
 	m_components.push_back(TComponent(2, 0, TLocation(421, 87), 0, CString("--"), 0));
 
-	double v = (340. + genRand(1, 30)) / 1000.;
+	double v = (400. + genRand(1, 30)) / 1000.;
 	double vx = -0.6 * v;
 	double vy = 0.8 * v;
 	double vz = 0;
@@ -179,6 +179,36 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 
 	m_iStaticIdx.push_back(m_components.size());
 	m_components.push_back(TComponent(5, 2, TLocation(450, 197), 0, CString("--"), 0));
+
+	m_iTargetIdx.push_back(m_components.size());
+	m_components.push_back(TComponent(6, 0, TLocation(197, 128), 0, CString("--"), 0));
+
+	v = (400. + genRand(1, 30)) / 1000.;
+	t.x = 197;
+	t.y = 128;
+	t.vx = 0.7 * v;
+	t.vy = 0.7 * v;
+	t.vz = 0;
+	m_targets.push_back(t);
+
+	m_iTargetIdx.push_back(m_components.size());
+	m_components.push_back(TComponent(6, 0, TLocation(239, 230), 0, CString("--"), 0));
+
+	v = (240. + genRand(1, 30)) / 1000.;
+	t.x = 239;
+	t.y = 230;
+	t.vx = 0.5 * v;
+	t.vy = -0.5 * v;
+	t.vz = 0;
+	m_targets.push_back(t);
+
+	m_iTargetIdx.push_back(m_components.size());
+	m_components.push_back(TComponent(7, 0, TLocation(197, 128), 0, CString("--"), 0));
+
+	m_iStaticIdx.push_back(m_components.size());
+	m_components.push_back(TComponent(8, 2, TLocation(274, 237), 0, CString("--"), 0));
+
+
 	UpdateList();
 
 	this->MoveWindow(&m_small);
