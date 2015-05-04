@@ -12,7 +12,6 @@
 #define new DEBUG_NEW
 #endif
 
-
 // CAboutDlg dialog used for App About
 class CAboutDlg : public CDialogEx
 {
@@ -584,14 +583,34 @@ void CEnvConsoleDlg::OnBnClickedStart()
 void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: Add your message handler code here and/or call default
+	CString buf;
+	/*
+	char sendBuf[200];
+	sprintf_s(sendBuf, "%lf,%lf,%lf", m_targets[i].x, m_targets[i].y, 0.);
+	*/
 	for(int i = 0;i < (int)m_targets.size();++i)
 	{
 		m_targets[i].Move();
-		char sendBuf[200]; 
-		sprintf_s(sendBuf, "%lf,%lf,%lf", m_targets[i].x, m_targets[i].y, 0.);
-		if(m_bIsAllConnected)
+		CString tmp;
+		tmp.Format("%lf,%lf,%lf", m_targets[i].x, m_targets[i].y, 0.);
+		buf += tmp;
+		buf += ";";
+	}
+	
+	for(int i = 0;i < (int)m_iStaticIdx.size();i++)
+	{
+		CString tmp;
+		int idx = m_iStaticIdx[i];
+		tmp.Format("%d,%d,%d", m_components[idx].loc.x, m_components[idx].loc.y, 0.);
+		buf += tmp;
+		buf += ";";
+	}
+	char *sendBuf = buf.GetBuffer();
+	if(m_bIsAllConnected)
+	{
+		for(int i = 0;i < (int)m_socket.size();i++)
 		{
-			if(SOCKET_ERROR == send(m_socket[i], sendBuf, strlen(sendBuf) + 1, 0))
+			if(SOCKET_ERROR == send(m_socket[i], sendBuf, buf.GetLength() + 1, 0))
 			{
 				PostMessage(WM_COMMAND, MAKEWPARAM(ID_START, BN_CLICKED), NULL);
 				PostMessage(WM_COMMAND, MAKEWPARAM(IDC_DISCONNECT, BN_CLICKED), NULL);
@@ -600,6 +619,8 @@ void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 			}
 		}
 	}
+
+	
 	m_time++;
 	InvalidateRect(&m_canvas);
 	CDialogEx::OnTimer(nIDEvent);
