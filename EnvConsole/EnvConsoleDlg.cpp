@@ -47,16 +47,16 @@ END_MESSAGE_MAP()
 CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CEnvConsoleDlg::IDD, pParent)
 	, m_time(0)
-	, m_bIsAllConnected(false)
 	, m_bIsStarted(false)
 	, m_iMapScale(0)
+	, m_bIsAllConnected(false)
 	, m_iScaleType(0)
 	, m_ClutterRCS(0)
 	, m_Coff(0)
 	, m_EnvDis(0)
 	, m_EleInterf(0)
 {
-	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAP);
 	m_strType[0] = "Target";
 	m_strType[1] = "Radar";
 	m_strType[2] = "Mountain";
@@ -110,6 +110,7 @@ BEGIN_MESSAGE_MAP(CEnvConsoleDlg, CDialogEx)
 	ON_NOTIFY(NM_CUSTOMDRAW, IDC_MAP_SCALE, &CEnvConsoleDlg::OnNMCustomdrawMapScale)
 	ON_NOTIFY(NM_CUSTOMDRAW, IDC_ENV_DIS, &CEnvConsoleDlg::OnNMCustomdrawEnvDis)
 	ON_NOTIFY(NM_CUSTOMDRAW, IDC_ELE_INTERF, &CEnvConsoleDlg::OnNMCustomdrawEleInterf)
+	ON_BN_CLICKED(IDCANCEL, &CEnvConsoleDlg::OnBnClickedCancel)
 END_MESSAGE_MAP()
 
 
@@ -151,18 +152,18 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	CRect r(530, 10, 530 + 425, 310);
 	m_list.SetExtendedStyle(LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT);
 	m_list.MoveWindow(&r);
-	m_list.InsertColumn(0, "No.", 0, 30);
+	m_list.InsertColumn(0, "No.", 0, 20);
 	m_list.InsertColumn(1, "Type", 0, 70);
-	m_list.InsertColumn(2, "Location", 0, 80);
-	m_list.InsertColumn(3, "State", 0, 100);
+	m_list.InsertColumn(2, "Location", 0, 100);
+	m_list.InsertColumn(3, "State", 0, 80);
 	m_list.InsertColumn(4, "IP Address", 0, 90);
 	m_list.InsertColumn(5, "Port", 0, 50);
 
 	m_iRadarIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(1, 1, TLocation(300, 200), 0, CString("127.0.0.1"), 6000));
+	m_components.push_back(TComponent(m_components.size() + 1, 1, TLocation(300, 200), 0, CString("127.0.0.1"), 6000));
 
 	m_iTargetIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(2, 0, TLocation(421, 87), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(421, 87), 0, CString("--"), 0));
 
 	double v = (400. + genRand(1, 30)) / 1000.;
 	double vx = -0.6 * v;
@@ -172,16 +173,22 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	m_targets.push_back(t);
 
 	m_iStaticIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(3, 2, TLocation(331, 132), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(331, 132), 0, CString("--"), 0));
+
+	m_iRadarIdx.push_back(m_components.size());
+	m_components.push_back(TComponent(m_components.size() + 1, 1, TLocation(210, 250), 0, CString("127.0.0.1"), 6001));
+
+	m_iRadarIdx.push_back(m_components.size());
+	m_components.push_back(TComponent(m_components.size() + 1, 1, TLocation(390, 300), 0, CString("127.0.0.1"), 6002));
 
 	m_iStaticIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(4, 2, TLocation(174, 338), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(174, 338), 0, CString("--"), 0));
 
 	m_iStaticIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(5, 2, TLocation(450, 197), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(450, 197), 0, CString("--"), 0));
 
 	m_iTargetIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(6, 0, TLocation(197, 128), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(197, 128), 0, CString("--"), 0));
 
 	v = (400. + genRand(1, 30)) / 1000.;
 	t.x = 197;
@@ -192,7 +199,7 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	m_targets.push_back(t);
 
 	m_iTargetIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(6, 0, TLocation(239, 230), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(239, 230), 0, CString("--"), 0));
 
 	v = (240. + genRand(1, 30)) / 1000.;
 	t.x = 239;
@@ -203,18 +210,51 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	m_targets.push_back(t);
 
 	m_iTargetIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(7, 0, TLocation(197, 128), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(197, 128), 0, CString("--"), 0));
 
 	m_iStaticIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(8, 2, TLocation(274, 237), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(274, 237), 0, CString("--"), 0));
 
+	for(int i = 0;i < 5;i++)
+	{
+		m_iStaticIdx.push_back(m_components.size());
+		m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(static_cast<double>(genRand(1, 490)), static_cast<double>(genRand(1, 499))), 0, CString("--"), 0));
+	}
 
+	m_iTargetIdx.push_back(m_components.size());
+	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(109, 430), 0, CString("--"), 0));
+
+	v = (310. + genRand(1, 30)) / 1000.;
+	t.x = 109;
+	t.y = 430;
+	t.vx = 0.8 * v;
+	t.vy = -0.6 * v;
+	t.vz = 0;
+	m_targets.push_back(t);
+
+	m_iTargetIdx.push_back(m_components.size());
+	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(50, 390), 0, CString("--"), 0));
+
+	v = (200. + genRand(1, 30)) / 1000.;
+	t.x = 50;
+	t.y = 390;
+	t.vx = 0.99 * v;
+	t.vy = -0.1 * v;
+	t.vz = 0;
+	m_targets.push_back(t);
+
+	for(int i = 0;i < 4;i++)
+	{
+		m_iStaticIdx.push_back(m_components.size());
+		m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(static_cast<double>(genRand(1, 490)), static_cast<double>(genRand(1, 499))), 0, CString("--"), 0));
+	}
 	UpdateList();
 
 	this->MoveWindow(&m_small);
 	CenterWindow();
 
 	m_btnDisconnect.EnableWindow(FALSE);
+	m_btnStart.EnableWindow(FALSE);
 
 	for(int i = 1;i < 10;i++)
 	{
@@ -252,6 +292,7 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	m_ClutterRCS = 1.84;
 	m_Coff = 0.67;
 	UpdateData(FALSE);
+	
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -335,9 +376,8 @@ HCURSOR CEnvConsoleDlg::OnQueryDragIcon()
 void CEnvConsoleDlg::OnBnClickedConnAll()
 {
 	// TODO: Add your control notification handler code here
-
+	m_bIsConnected.resize(m_iRadarIdx.size());
 	// Connect to radar components
-	m_bIsAllConnected = true;
 	m_socket.clear();
 	for(int i = 0;i < (int)m_iRadarIdx.size();i++)
 	{
@@ -351,9 +391,13 @@ void CEnvConsoleDlg::OnBnClickedConnAll()
 		addrSrv.sin_port = htons(m_components[idx].host);
 
 		if(!connect(sock, (SOCKADDR *)&addrSrv, sizeof(SOCKADDR)))
+		{
 			m_components[idx].state = STATE_CONNECTED;
-		else 
-			m_bIsAllConnected = false;
+			m_bIsConnected[i] = true;
+		}
+		else {
+			m_bIsConnected[i] = false;
+		}
 		m_socket.push_back(sock);
 	}
 
@@ -371,17 +415,19 @@ void CEnvConsoleDlg::OnBnClickedConnAll()
 		m_components[idx].state = 1;
 	}
 	UpdateList();
+	CheckConnection();
+	m_btnDisconnect.EnableWindow(TRUE);
+	m_btnStart.EnableWindow(TRUE);
 	if(m_bIsAllConnected)
 	{
 		m_btnConnectAll.EnableWindow(FALSE);
-		m_btnDisconnect.EnableWindow(TRUE);
 	}
 	else{
 		CString str;
 		m_btnDetails.GetWindowTextA(str);
 		if(str == "Details")
 			PostMessage(WM_COMMAND, MAKEWPARAM(IDC_DETAILS, BN_CLICKED), NULL);
-		MessageBox("Some components are not connected, simulator\ncannot run correctly.", "Warning", MB_OK|MB_ICONWARNING);
+		MessageBox("Some components are not connected, simulator\nmay not run correctly.", "Warning", MB_OK|MB_ICONWARNING);
 		return ;
 	}
 }
@@ -397,7 +443,7 @@ void CEnvConsoleDlg::UpdateList(void)
 		str.Format("%d", m_components[i].no);
 		int nRow = m_list.InsertItem(pos, str);
 		m_list.SetItemText(nRow, 1, m_strType[m_components[i].type]);
-		str.Format("(%d, %d)",m_components[i].loc.x, m_components[i].loc.y);
+		str.Format("(%.2f, %.2f)",m_components[i].loc.x, m_components[i].loc.y);
 		m_list.SetItemText(nRow, 2, str);
 		m_list.SetItemText(nRow, 3,  m_strState[m_components[i].state]);
 		m_list.SetItemText(nRow, 4, m_components[i].ip);
@@ -460,14 +506,14 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 		int idx = m_iStaticIdx[i];
 		CPoint pt[3];
 
-		pt[0].x = m_components[idx].loc.x;
-		pt[0].y = m_components[idx].loc.y - sz;
+		pt[0].x = static_cast<int>(m_components[idx].loc.x);
+		pt[0].y = static_cast<int>(m_components[idx].loc.y) - sz;
 
-		pt[1].x = m_components[idx].loc.x + sz;
-		pt[1].y = m_components[idx].loc.y + sz;
+		pt[1].x = static_cast<int>(m_components[idx].loc.x) + sz;
+		pt[1].y = static_cast<int>(m_components[idx].loc.y) + sz;
 
-		pt[2].x = m_components[idx].loc.x - sz;
-		pt[2].y = m_components[idx].loc.y + sz;
+		pt[2].x = static_cast<int>(m_components[idx].loc.x) - sz;
+		pt[2].y = static_cast<int>(m_components[idx].loc.y) + sz;
 		pDC->Polygon(pt, 3);
 	}
 
@@ -501,16 +547,16 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 		pDC->SelectObject(&brush);
 		int idx = m_iRadarIdx[i];
 		CPoint pt;
-		CRect r(m_components[idx].loc.x - sz, 
-			m_components[idx].loc.y - sz, 
-			m_components[idx].loc.x + sz,
-			m_components[idx].loc.y + sz);
+		CRect r(static_cast<int>(m_components[idx].loc.x) - sz, 
+			static_cast<int>(m_components[idx].loc.y) - sz, 
+			static_cast<int>(m_components[idx].loc.x) + sz,
+			static_cast<int>(m_components[idx].loc.y) + sz);
 		pDC->FillRect(r, &brush);
 
-		CRect rt(m_components[idx].loc.x - radis, 
-			m_components[idx].loc.y - radis, 
-			m_components[idx].loc.x + radis,
-			m_components[idx].loc.y + radis);
+		CRect rt(static_cast<int>(m_components[idx].loc.x) - radis, 
+			static_cast<int>(m_components[idx].loc.y) - radis, 
+			static_cast<int>(m_components[idx].loc.x) + radis,
+			static_cast<int>(m_components[idx].loc.y) + radis);
 	
 		CPen p(PS_DOT, 1, RGB(0, 0, 0));
 		pDC->SelectObject(&p);
@@ -518,8 +564,8 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 		CBrush *b = CBrush::FromHandle( (HBRUSH)GetStockObject(NULL_BRUSH));
 		pDC->SelectObject(b);
 
-		pDC->MoveTo(m_components[idx].loc.x, m_components[idx].loc.y);
-		pDC->LineTo(m_components[idx].loc.x + radis * 3 / 5, m_components[idx].loc.y + radis * 4 / 5);
+		pDC->MoveTo(static_cast<int>(m_components[idx].loc.x), static_cast<int>(m_components[idx].loc.y));
+		pDC->LineTo(static_cast<int>(m_components[idx].loc.x) + radis * 3 / 5, static_cast<int>(m_components[idx].loc.y) + radis * 4 / 5);
 		pDC->Ellipse(rt);
 	}
 
@@ -591,21 +637,25 @@ void CEnvConsoleDlg::OnBnClickedStart()
 	// TODO: Add your control notification handler code here
 	if(!m_bIsStarted)
 	{
+
 		if(!m_bIsAllConnected)
 		{
-			MessageBox("Some components are not connected, simulator\ncannot run correctly.", "Warning", MB_OK|MB_ICONWARNING);
-			return ;
+			if(IDNO == MessageBox("Some components are not connected, simulator may not run correctly. Are you sure to continue?", "Warning", MB_YESNO|MB_ICONWARNING))
+				return ;
 		}
+	
 		SetTimer(1, 100, NULL);
 		m_bIsStarted = true;
-		m_btnStart.SetWindowTextA("Pause");
+		m_btnStart.SetWindowTextA("Stop");
 		m_btnDisconnect.EnableWindow(FALSE);
+		m_btnConnectAll.EnableWindow(FALSE);
 	}
 	else{
 		KillTimer(1);
 		m_bIsStarted = false;
 		m_btnStart.SetWindowTextA("Start");
 		m_btnDisconnect.EnableWindow(TRUE);
+		m_btnConnectAll.EnableWindow(TRUE);
 	}
 
 }
@@ -613,45 +663,69 @@ void CEnvConsoleDlg::OnBnClickedStart()
 void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: Add your message handler code here and/or call default
-	CString buf;
+
 	/*
 	char sendBuf[200];
 	sprintf_s(sendBuf, "%lf,%lf,%lf", m_targets[i].x, m_targets[i].y, 0.);
 	*/
-	for(int i = 0;i < (int)m_targets.size();++i)
+	for(int k = 0;k < (int)m_iRadarIdx.size();k++)
 	{
-		m_targets[i].Move();
-		CString tmp;
-		tmp.Format("%lf,%lf,%lf", m_targets[i].x, m_targets[i].y, 0.);
-		buf += tmp;
-		buf += ";";
-	}
-	
-	for(int i = 0;i < (int)m_iStaticIdx.size();i++)
-	{
-		CString tmp;
-		int idx = m_iStaticIdx[i];
-		tmp.Format("%d,%d,%d", m_components[idx].loc.x, m_components[idx].loc.y, 0.);
-		buf += tmp;
-		buf += ";";
-	}
-	char *sendBuf = buf.GetBuffer();
-	if(m_bIsAllConnected)
-	{
-		for(int i = 0;i < (int)m_socket.size();i++)
+		CString buf;
+		for(int i = 0;i < (int)m_targets.size();++i)
 		{
-			if(SOCKET_ERROR == send(m_socket[i], sendBuf, buf.GetLength() + 1, 0))
+			m_targets[i].Move();
+			double dis = Distance(	m_components[m_iRadarIdx[k]].loc.x,
+									m_components[m_iRadarIdx[k]].loc.y,  
+									m_targets[i].x,  
+									m_targets[i].y);
+			if(dis > 100.)
+				continue;			
+			CString tmp;
+			tmp.Format("%lf,%lf,%lf", m_targets[i].x, m_targets[i].y, 0.);
+			buf += tmp;
+			buf += ";";
+		}
+
+		for(int i = 0;i < (int)m_iStaticIdx.size();i++)
+		{
+			double dis = Distance(	m_components[m_iRadarIdx[k]].loc.x, 
+									m_components[m_iRadarIdx[k]].loc.y, 
+									m_components[m_iStaticIdx[i]].loc.x,
+									m_components[m_iStaticIdx[i]].loc.y);
+			if(dis > 100.)
+				continue;
+			CString tmp;
+			int idx = m_iStaticIdx[i];
+			tmp.Format("%d,%d,%d", static_cast<int>(m_components[idx].loc.x), static_cast<int>(m_components[idx].loc.y), 0);
+			buf += tmp;
+			buf += ";";
+		}
+		char *sendBuf = buf.GetBuffer();
+
+		if(!m_bIsConnected[k])
+			continue;
+	/*
+		if(m_bIsAllConnected)
+		{
+			if(SOCKET_ERROR == send(m_socket[k], sendBuf, buf.GetLength() + 1, 0))
 			{
 				PostMessage(WM_COMMAND, MAKEWPARAM(ID_START, BN_CLICKED), NULL);
 				PostMessage(WM_COMMAND, MAKEWPARAM(IDC_DISCONNECT, BN_CLICKED), NULL);
-				MessageBox("Connection failed for unkonwn reason.", "Warning", MB_OK|MB_ICONWARNING);
+				MessageBox("Connection failed for unknown reason. Maybe a component or some of them has been disconnected. Please check your nerwork configuratoin.", "Warning", MB_OK|MB_ICONWARNING);
 				return ;
 			}
 		}
+	*/
+		if(SOCKET_ERROR == send(m_socket[k], sendBuf, buf.GetLength() + 1, 0))
+		{
+			m_bIsConnected[k] = false;
+			CheckConnection();
+			UpdateList();
+			continue;
+		}
 	}
-
 	
-	m_time++;
+	m_time++; 
 	InvalidateRect(&m_canvas);
 	CDialogEx::OnTimer(nIDEvent);
 } 
@@ -714,6 +788,7 @@ void CEnvConsoleDlg::OnBnClickedDisconnect()
 	UpdateList();
 	m_btnConnectAll.EnableWindow(TRUE);
 	m_btnDisconnect.EnableWindow(FALSE);
+	m_btnStart.EnableWindow(FALSE);
 }
 
 
@@ -721,7 +796,41 @@ void CEnvConsoleDlg::OnBnClickedAdd()
 {
 	// TODO: Add your control notification handler code here
 	CAddDialog AddDlg;
-	AddDlg.DoModal();
+	if(IDOK == AddDlg.DoModal())
+	{
+		int type = AddDlg.m_type, port;
+		double x = AddDlg.m_x;
+		double y = AddDlg.m_y;
+		double z = AddDlg.m_z;
+		double vx, vy, vz;
+		DWORD ip;
+		CString strIP;
+		switch(type)
+		{
+		case 0:
+			m_iStaticIdx.push_back(m_components.size());
+			m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(x, y), 0, CString("--"), 0));
+			break;
+		case 1:
+			port = AddDlg.m_port;
+			ip = AddDlg.m_ip;
+			strIP.Format(_T("%d.%d.%d.%d"), (ip>>24)&0xff, (ip>>16)&0xff, (ip>>8)&0xff, ip&0xff ) ;  
+			m_iRadarIdx.push_back(m_components.size());
+			m_components.push_back(TComponent(m_components.size() + 1, 1, TLocation(x, y), 0, strIP, port));
+			break;
+		case 2:
+			vx = AddDlg.m_vx;
+			vy = AddDlg.m_vy;
+			vz = AddDlg.m_vz;
+			m_iTargetIdx.push_back(m_components.size());
+			m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(x, y), 0, CString("--"), 0));
+			m_targets.push_back(Target(x, y, z, vx, vy, 0));
+			break;
+		default:;
+		}
+		UpdateList();
+		InvalidateRect(&m_canvas);
+	}
 }
 
 
@@ -763,4 +872,35 @@ void CEnvConsoleDlg::OnNMCustomdrawEleInterf(NMHDR *pNMHDR, LRESULT *pResult)
 	str.Format("%.2lf", tmp);
 	GetDlgItem(IDC_ELE_INTERF_T)->SetWindowTextA(str);
 	UpdateData(FALSE);
+}
+
+
+double CEnvConsoleDlg::Distance(double x1, double y1, double x2, double y2)
+{
+	return sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+}
+
+
+
+void CEnvConsoleDlg::CheckConnection(void)
+{
+	m_bIsAllConnected = true;
+	for(int i = 0;i < (int)m_bIsConnected.size();i++)
+	{
+		m_bIsAllConnected &= m_bIsConnected[i];
+		m_components[m_iRadarIdx[i]].state = m_bIsConnected[i] ? STATE_CONNECTED:STATE_DISCONNECTED;
+	}
+}
+
+
+void CEnvConsoleDlg::OnBnClickedCancel()
+{
+	// TODO: Add your control notification handler code here
+	if(IDYES == MessageBox("Are you sure to quit?", "Question",MB_YESNO|MB_ICONQUESTION))
+	{
+		CDialogEx::OnCancel();
+	}
+	else {
+		return ;
+	}
 }

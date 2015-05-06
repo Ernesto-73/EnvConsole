@@ -33,4 +33,7 @@ public:
 	int m_port;
 	DWORD m_ip;
 	afx_msg void OnCbnSelchangeType();
+	afx_msg void OnBnClickedOk();
+	int m_type;
+	CString m_strIP;
 };

@@ -19,22 +19,22 @@ typedef struct TLocation{
 		// default constructor.
 	}
 
-	TLocation(int _x, int _y, int _z)
+	TLocation(double _x, double _y, double _z)
 	{
 		x = _x;
 		y = _y;
 		z = _z;
 	}
 
-	TLocation(int _x, int _y)
+	TLocation(double _x, double _y)
 	{
 		x = _x;
 		y = _y;
 		z = 0;
 	}
-	int x;
-	int y;
-	int z;
+	double x;
+	double y;
+	double z;
 }TLocation;
 
 typedef struct Target{
@@ -144,6 +144,7 @@ public:
 	CButton m_btnStart;
 	CButton m_btnConnectAll;
 	CButton m_btnDisconnect;
+	std::vector<bool> m_bIsConnected;
 	bool m_bIsAllConnected;
 	afx_msg void OnBnClickedDisconnect();
 	bool m_bIsStarted;
@@ -162,4 +163,7 @@ public:
 	CSliderCtrl m_SliderEleInterf;
 	int m_EleInterf;
 	afx_msg void OnNMCustomdrawEleInterf(NMHDR *pNMHDR, LRESULT *pResult);
+	double Distance(double x1, double y1, double x2, double y2);
+	void CheckConnection(void);
+	afx_msg void OnBnClickedCancel();
 };

@@ -8,10 +8,13 @@
 
 
 // CAddDialog dialog
-
+ unsigned int seed = 1;
 int genRand(int min, int max)
 {
-	srand( (unsigned int)time(0));
+	seed += 2;
+	seed = seed % 1024;
+	seed += (unsigned int)time(0);
+	srand(seed);
 	return rand() % (max + 1 - min) + min;
 }
 
@@ -27,6 +30,8 @@ CAddDialog::CAddDialog(CWnd* pParent /*=NULL*/)
 	, m_vz(0)
 	, m_port(0)
 	, m_ip(0)
+	, m_type(0)
+	, m_strIP(_T("127.0.0.1"))
 {
 
 }
@@ -40,9 +45,9 @@ void CAddDialog::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_TYPE, m_comboType);
 	DDX_Text(pDX, IDC_X, m_x);
-	DDV_MinMaxDouble(pDX, m_x, 0, 500);
+	DDV_MinMaxDouble(pDX, m_x, 50, 450);
 	DDX_Text(pDX, IDC_Y, m_y);
-	DDV_MinMaxDouble(pDX, m_y, 0, 500);
+	DDV_MinMaxDouble(pDX, m_y, 50, 450);
 	DDX_Text(pDX, IDC_Z, m_z);
 	DDV_MinMaxDouble(pDX, m_z, 0, 5000);
 	DDX_Text(pDX, IDC_VX, m_vx);
@@ -59,6 +64,7 @@ void CAddDialog::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CAddDialog, CDialogEx)
 	ON_CBN_SELCHANGE(IDC_TYPE, &CAddDialog::OnCbnSelchangeType)
+	ON_BN_CLICKED(IDOK, &CAddDialog::OnBnClickedOk)
 END_MESSAGE_MAP()
 
 
@@ -81,15 +87,23 @@ BOOL CAddDialog::OnInitDialog()
 	GetDlgItem(IDC_IPADDRESS)->EnableWindow(FALSE);
 	GetDlgItem(IDC_PORT)->EnableWindow(FALSE);
 
-	m_x = genRand(0, 500);
-	m_y = genRand(0, 500);
+	m_x = genRand(50, 450);
+	m_y = genRand(50, 450);
 	m_z = genRand(0, 5000);
 
 	m_vx = genRand(0, 1200);
 	m_vy = genRand(0, 1200);
 	m_vz = genRand(0, 1200);
 
-	m_ip = 0xffffffff;
+/*
+	hostent *host;
+	char hostName[100];
+	gethostname(hostName, 100);
+	host = gethostbyname(hostName); 
+	m_strIP = inet_ntoa(*(struct in_addr *)host->h_addr_list[0]);
+*/
+	// For Debug: set m_strIP to be loopback ip
+	m_ip = ntohl(inet_addr(m_strIP));
 	m_port = 6000;
 	UpdateData(FALSE);
 	return TRUE;  // return TRUE unless you set the focus to a control
@@ -126,4 +140,14 @@ void CAddDialog::OnCbnSelchangeType()
 		break;
 	default:;
 	}
+}
+
+
+
+void CAddDialog::OnBnClickedOk()
+{
+	// TODO: Add your control notification handler code here
+	UpdateData(TRUE);
+	m_type = m_comboType.GetCurSel();
+	CDialogEx::OnOK();
 }

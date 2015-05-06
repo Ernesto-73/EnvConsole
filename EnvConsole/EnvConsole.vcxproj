@@ -97,6 +97,7 @@
     <None Include="ReadMe.txt" />
     <None Include="res\EnvConsole.ico" />
     <None Include="res\EnvConsole.rc2" />
+    <None Include="res\map.ico" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AddDialog.h" />

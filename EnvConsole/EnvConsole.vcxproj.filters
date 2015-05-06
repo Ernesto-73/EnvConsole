@@ -22,6 +22,9 @@
     <None Include="res\EnvConsole.ico">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="res\map.ico">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EnvConsole.h">
