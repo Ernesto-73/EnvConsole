@@ -55,17 +55,22 @@ CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 	, m_Coff(0)
 	, m_EnvDis(0)
 	, m_EleInterf(0)
+	, m_iSelected(-1)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAP);
-	m_strType[0] = "Target";
+	m_font.CreatePointFont(80, "Verdana", NULL);
+
+	m_strType[0] = "Mountain";
 	m_strType[1] = "Radar";
-	m_strType[2] = "Mountain";
+	m_strType[2] = "Target";
 
 	m_strState[0] = "Disconnected";
 	m_strState[1] = "Connected";
+
 	this->m_large = CRect(0, 0, 980, 600);
 	this->m_small = CRect(0, 0, 535, 600);
 	this->m_canvas = CRect(10, 10, 510, 510);
+	memset(m_arrOptions, 0, sizeof(int) * NUM);
 }
 
 void CEnvConsoleDlg::DoDataExchange(CDataExchange* pDX)
@@ -78,7 +83,7 @@ void CEnvConsoleDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CONN_ALL, m_btnConnectAll);
 	DDX_Control(pDX, IDC_DISCONNECT, m_btnDisconnect);
 	DDX_Slider(pDX, IDC_MAP_SCALE, m_iMapScale);
-	DDV_MinMaxInt(pDX, m_iMapScale, 100, 2000);
+	DDV_MinMaxInt(pDX, m_iMapScale, 1, 20);
 	DDX_Control(pDX, IDC_MAP_SCALE, m_sliderMapScale);
 	DDX_Radio(pDX, IDC_SCALE_TYPE_1, m_iScaleType);
 	DDX_Text(pDX, IDC_CLUTTER_RCS, m_ClutterRCS);
@@ -111,6 +116,16 @@ BEGIN_MESSAGE_MAP(CEnvConsoleDlg, CDialogEx)
 	ON_NOTIFY(NM_CUSTOMDRAW, IDC_ENV_DIS, &CEnvConsoleDlg::OnNMCustomdrawEnvDis)
 	ON_NOTIFY(NM_CUSTOMDRAW, IDC_ELE_INTERF, &CEnvConsoleDlg::OnNMCustomdrawEleInterf)
 	ON_BN_CLICKED(IDCANCEL, &CEnvConsoleDlg::OnBnClickedCancel)
+	ON_NOTIFY(LVN_ITEMCHANGED, IDC_LIST, &CEnvConsoleDlg::OnLvnItemchangedList)
+	ON_BN_CLICKED(IDC_DELETE, &CEnvConsoleDlg::OnBnClickedDelete)
+	ON_BN_CLICKED(IDC_SHOW_STATIC_OBJS, &CEnvConsoleDlg::OnBnClickedShowStaticObjs)
+	ON_BN_CLICKED(IDC_IMPORT, &CEnvConsoleDlg::OnBnClickedImport)
+	ON_WM_CTLCOLOR()
+	ON_WM_CTLCOLOR()
+	ON_WM_RBUTTONDOWN()
+	ON_COMMAND(ID_TARGET_LOCATION, &CEnvConsoleDlg::OnTargetlocation)
+	ON_COMMAND(ID_RADAR_LOCATION, &CEnvConsoleDlg::OnRadarLocation)
+	ON_COMMAND(ID_STATIC_LOCATION, &CEnvConsoleDlg::OnStaticLocation)
 END_MESSAGE_MAP()
 
 
@@ -146,107 +161,88 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-	
+	m_btnStart.SetFont(&m_font);
+	m_btnConnectAll.SetFont(&m_font);
+	m_btnDetails.SetFont(&m_font);
+	m_btnDisconnect.SetFont(&m_font);
+	m_btnStart.SetFont(&m_font);
+
+	GetDlgItem(IDC_STATIC)->SetFont(&m_font);
+	GetDlgItem(IDC_ADD)->SetFont(&m_font);
+	GetDlgItem(IDC_IMPORT)->SetFont(&m_font);
+	GetDlgItem(IDC_DELETE)->SetFont(&m_font);
+	GetDlgItem(IDCANCEL)->SetFont(&m_font);
+	GetDlgItem(IDC_SHOW_STATIC_OBJS)->SetFont(&m_font);
+	GetDlgItem(IDC_SCALE_TYPE_1)->SetFont(&m_font);
+	GetDlgItem(IDC_SCALE_TYPE_2)->SetFont(&m_font);
+
 	m_seperator.MoveWindow(520, 5, 2, 550);
-//	m_list.Create(LVS_REPORT | LVS_NOLABELWRAP | LVS_SHOWSELALWAYS, CRect(0, 0, 200, 500), this, 123);
 	CRect r(530, 10, 530 + 425, 310);
-	m_list.SetExtendedStyle(LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT);
+	m_list.SetExtendedStyle(LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT );
+	
 	m_list.MoveWindow(&r);
-	m_list.InsertColumn(0, "No.", 0, 20);
+	m_list.InsertColumn(0, "No.", 0, 40);
 	m_list.InsertColumn(1, "Type", 0, 70);
-	m_list.InsertColumn(2, "Location", 0, 100);
+	m_list.InsertColumn(2, "Location(Origin)", 0, 110);
 	m_list.InsertColumn(3, "State", 0, 80);
 	m_list.InsertColumn(4, "IP Address", 0, 90);
 	m_list.InsertColumn(5, "Port", 0, 50);
 
-	m_iRadarIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 1, TLocation(300, 200), 0, CString("127.0.0.1"), 6000));
+	m_list.SetFont(&m_font);
 
-	m_iTargetIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(421, 87), 0, CString("--"), 0));
-
-	double v = (400. + genRand(1, 30)) / 1000.;
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(300.9, 200.97), 0, CString("127.0.0.1"), 6000));
+	double v = (200. + genRand(1, 30)) / 1000.;
 	double vx = -0.6 * v;
 	double vy = 0.8 * v;
 	double vz = 0;
-	Target t(421., 87., 100., vx, vy, 0);
-	m_targets.push_back(t);
 
-	m_iStaticIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(331, 132), 0, CString("--"), 0));
-
-	m_iRadarIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 1, TLocation(210, 250), 0, CString("127.0.0.1"), 6001));
-
-	m_iRadarIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 1, TLocation(390, 300), 0, CString("127.0.0.1"), 6002));
-
-	m_iStaticIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(174, 338), 0, CString("--"), 0));
-
-	m_iStaticIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(450, 197), 0, CString("--"), 0));
-
-	m_iTargetIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(197, 128), 0, CString("--"), 0));
-
-	v = (400. + genRand(1, 30)) / 1000.;
-	t.x = 197;
-	t.y = 128;
-	t.vx = 0.7 * v;
-	t.vy = 0.7 * v;
-	t.vz = 0;
-	m_targets.push_back(t);
-
-	m_iTargetIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(239, 230), 0, CString("--"), 0));
-
-	v = (240. + genRand(1, 30)) / 1000.;
-	t.x = 239;
-	t.y = 230;
-	t.vx = 0.5 * v;
-	t.vy = -0.5 * v;
-	t.vz = 0;
-	m_targets.push_back(t);
-
-	m_iTargetIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(197, 128), 0, CString("--"), 0));
-
-	m_iStaticIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(274, 237), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_TARGET, TLocation(421.23, 87.03), 0, CString("--"), 0, TSpeed(vx, vy, vz)));
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(331.86, 132.0), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(210.75, 250.01), STATE_DISCONNECTED, CString("127.0.0.1"), 6001));
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(390.57, 300.093), STATE_DISCONNECTED, CString("127.0.0.1"), 6002));
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(174.49, 338.99), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(450.32, 197.91), 0, CString("--"), 0));
 
 	for(int i = 0;i < 5;i++)
 	{
-		m_iStaticIdx.push_back(m_components.size());
-		m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(static_cast<double>(genRand(1, 490)), static_cast<double>(genRand(1, 499))), 0, CString("--"), 0));
+		Sleep(50);
+		double x = genRand(1, 316) * genRand(1, 316) / 99.;
+		Sleep(50);
+		double y = genRand(1, 316) * genRand(1, 316) / 99.;
+		m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(x, y), 0, CString("--"), 0));
 	}
 
-	m_iTargetIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(109, 430), 0, CString("--"), 0));
+	v = (100. + genRand(1, 30)) / 1000.;
+	vx = 0.7 * v;
+	vy = 0.7 * v;
+	vz = 0;
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_TARGET, TLocation(197.83, 128.73), 0, CString("--"), 0, TSpeed(vx, vy, vz)));
 
-	v = (310. + genRand(1, 30)) / 1000.;
-	t.x = 109;
-	t.y = 430;
-	t.vx = 0.8 * v;
-	t.vy = -0.6 * v;
-	t.vz = 0;
-	m_targets.push_back(t);
+	v = (140. + genRand(1, 30)) / 1000.;
+	vx = 0.6 * v;
+	vy = -0.5 * v;
+	vz = 0;
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_TARGET, TLocation(239.34, 230.92), 0, CString("--"), 0, TSpeed(vx, vy, vz)));
 
-	m_iTargetIdx.push_back(m_components.size());
-	m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(50, 390), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(300.90, 200.97), 0, CString("10.106.3.128"), 6000));
 
-	v = (200. + genRand(1, 30)) / 1000.;
-	t.x = 50;
-	t.y = 390;
-	t.vx = 0.99 * v;
-	t.vy = -0.1 * v;
-	t.vz = 0;
-	m_targets.push_back(t);
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(120.57, 119.81), 0, CString("127.0.0.1"), 6004));
 
-	for(int i = 0;i < 4;i++)
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(420.07, 99.81), 0, CString("127.0.0.1"), 6005));
+
+	v = (90. + genRand(1, 30)) / 1000.;
+	vx = 0.1 * v;
+	vy = -0.8 * v;
+	vz = 0;
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_TARGET, TLocation(331.84, 330.12), 0, CString("--"), 0, TSpeed(vx, vy, vz)));
+
+	for(int i = 0;i < 25;i++)
 	{
-		m_iStaticIdx.push_back(m_components.size());
-		m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(static_cast<double>(genRand(1, 490)), static_cast<double>(genRand(1, 499))), 0, CString("--"), 0));
+		Sleep(50);
+		double x = genRand(1, 3160) * genRand(1, 316) / 99.;
+		Sleep(50);
+		double y = genRand(1, 3160) * genRand(1, 316) / 99.;
+		m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(x, y), 0, CString("--"), 0));
 	}
 	UpdateList();
 
@@ -271,8 +267,8 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	m_comboClutterType.SelectString(0, "Land");
 
 	// DDX variable initial.
-	m_sliderMapScale.SetRange(100, 2000);
-	m_iMapScale = 1000;
+	m_sliderMapScale.SetRange(1, 20);
+	m_iMapScale = 1;
 	CString str;
 	str.Format("%d", m_iMapScale);
 	GetDlgItem(IDC_MAP_SCALE_T)->SetWindowTextA(str);
@@ -284,7 +280,7 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	GetDlgItem(IDC_ENV_DIS_T)->SetWindowTextA(str);
 
 	m_SliderEleInterf.SetRange(0, 1000);
-	m_EleInterf = 143;
+	m_EleInterf = 643;
 	tmp = m_EleInterf / 100.;
 	str.Format("%.2lf", tmp);
 	GetDlgItem(IDC_ELE_INTERF_T)->SetWindowTextA(str);
@@ -293,6 +289,8 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	m_Coff = 0.67;
 	UpdateData(FALSE);
 	
+	((CButton *)GetDlgItem(IDC_SHOW_STATIC_OBJS))->SetCheck(1);
+
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -318,7 +316,6 @@ void CEnvConsoleDlg::OnPaint()
 	if (IsIconic())
 	{
 		CPaintDC dc(this); // device context for painting
-
 		SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
 
 		// Center icon in client rectangle
@@ -335,6 +332,7 @@ void CEnvConsoleDlg::OnPaint()
 	else
 	{
 		CPaintDC dc(this);
+		
 		CDC xDC;
 		dc.SetBkColor(RGB(100,50,0));
 		CBitmap xBMP;
@@ -376,8 +374,9 @@ HCURSOR CEnvConsoleDlg::OnQueryDragIcon()
 void CEnvConsoleDlg::OnBnClickedConnAll()
 {
 	// TODO: Add your control notification handler code here
+	
+	// Connect to radar components.
 	m_bIsConnected.resize(m_iRadarIdx.size());
-	// Connect to radar components
 	m_socket.clear();
 	for(int i = 0;i < (int)m_iRadarIdx.size();i++)
 	{
@@ -414,8 +413,10 @@ void CEnvConsoleDlg::OnBnClickedConnAll()
 		int idx = m_iTargetIdx[i];
 		m_components[idx].state = 1;
 	}
+
 	UpdateList();
 	CheckConnection();
+	InvalidateRect(&m_canvas);
 	m_btnDisconnect.EnableWindow(TRUE);
 	m_btnStart.EnableWindow(TRUE);
 	if(m_bIsAllConnected)
@@ -436,21 +437,43 @@ void CEnvConsoleDlg::OnBnClickedConnAll()
 void CEnvConsoleDlg::UpdateList(void)
 {
 	m_list.DeleteAllItems();
-	for(int i = 0;i < (int)m_components.size();i++)
+	m_iTargetIdx.clear();
+	m_iStaticIdx.clear();
+	m_iRadarIdx.clear();
+
+	int idx = 0;
+	for(std::vector<TComponent>::iterator it = m_components.begin();it != m_components.end();it++)
 	{
+		switch(it->type)
+		{
+		case TYPE_RADAR:
+			m_iRadarIdx.push_back(idx);
+			break;
+		case TYPE_TARGET:
+			m_iTargetIdx.push_back(idx);
+			break;
+		case TYPE_MOUNTAIN:
+			m_iStaticIdx.push_back(idx);
+			break;
+		}
+		idx++;
+
+		if(m_arrOptions[HIDE_STATIC_OBJ] == 1 && it->type == TYPE_MOUNTAIN)
+			continue;
+
 		int pos = m_list.GetItemCount();
 		CString str;
-		str.Format("%d", m_components[i].no);
+		str.Format("%d", it->no);
 		int nRow = m_list.InsertItem(pos, str);
-		m_list.SetItemText(nRow, 1, m_strType[m_components[i].type]);
-		str.Format("(%.2f, %.2f)",m_components[i].loc.x, m_components[i].loc.y);
+		m_list.SetItemText(nRow, 1, m_strType[it->type]);
+		str.Format("(%.2f, %.2f)",it->loc.x,it->loc.y);
 		m_list.SetItemText(nRow, 2, str);
-		m_list.SetItemText(nRow, 3,  m_strState[m_components[i].state]);
-		m_list.SetItemText(nRow, 4, m_components[i].ip);
-		if(m_components[i].host == 0)
+		m_list.SetItemText(nRow, 3,  m_strState[it->state]);
+		m_list.SetItemText(nRow, 4, it->ip);
+		if(it->host == 0)
 			str  = "--";
 		else 
-			str.Format("%d", m_components[i].host);
+			str.Format("%d", it->host);
 		m_list.SetItemText(nRow, 5, str);
 	}
 	/*
@@ -464,9 +487,26 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 {
 	CRect r;
 	GetClientRect(&r);
-	pDC->FillSolidRect(&r,RGB(255, 255, 255));
+	pDC->FillSolidRect(&r,RGB(0, 0, 0));
 
-	CPen pen(PS_SOLID, 1, RGB(0, 0, 0));
+	int tx = 345;
+	int ty = 480;
+
+	TEXTMETRIC tm;
+	pDC->GetTextMetrics(&tm);
+	pDC->SetTextColor(RGB(200, 200, 200));
+	CString str;
+	str.Format("Simulation Time: %d s", m_time);
+
+	CFont font;
+	font.CreatePointFont(90, "Verdana", NULL);
+	CFont *oFont = pDC->SelectObject(&font);
+	font.Detach();
+
+	pDC->SetBkColor(RGB(0, 0, 0));
+	pDC->TextOut(tx, ty, str);
+
+	CPen pen(PS_SOLID, 1, RGB(0, 255, 0));
 	CPen *oPen = pDC->SelectObject(&pen);
 	CBrush brush(RGB(0, 0, 0));
 	CBrush *oBrush = pDC->SelectObject(&brush);
@@ -484,7 +524,7 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 	pDC->LineTo(499, 499);
 
 	pen.DeleteObject();
-	pen.CreatePen(PS_DOT, 1, RGB(0, 0, 0));
+	pen.CreatePen(PS_DOT, 1, RGB(0, 255, 0));
 	pDC->SelectObject(&pen);
 
 	for(int i = 1;i < 10;i++)
@@ -497,24 +537,30 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 	}
 
 	pen.DeleteObject();
-	pen.CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+	pen.CreatePen(PS_SOLID, 1, RGB(0, 255, 0));
 	pDC->SelectObject(&pen);
 
-	int sz = 5;
+	int sz = 6;
 	for(int i = 0;i < (int)m_iStaticIdx.size();i++)
 	{
 		int idx = m_iStaticIdx[i];
 		CPoint pt[3];
 
-		pt[0].x = static_cast<int>(m_components[idx].loc.x);
-		pt[0].y = static_cast<int>(m_components[idx].loc.y) - sz;
+		pt[0].x = static_cast<int>(m_components[idx].loc.x / m_iMapScale);
+		pt[0].y = static_cast<int>(m_components[idx].loc.y / m_iMapScale) - sz;
 
-		pt[1].x = static_cast<int>(m_components[idx].loc.x) + sz;
-		pt[1].y = static_cast<int>(m_components[idx].loc.y) + sz;
+		pt[1].x = static_cast<int>(m_components[idx].loc.x / m_iMapScale) + sz;
+		pt[1].y = static_cast<int>(m_components[idx].loc.y / m_iMapScale) + sz;
 
-		pt[2].x = static_cast<int>(m_components[idx].loc.x) - sz;
-		pt[2].y = static_cast<int>(m_components[idx].loc.y) + sz;
+		pt[2].x = static_cast<int>(m_components[idx].loc.x / m_iMapScale) - sz;
+		pt[2].y = static_cast<int>(m_components[idx].loc.y / m_iMapScale) + sz;
 		pDC->Polygon(pt, 3);
+		if(m_arrOptions[STATIC_LOCATION] == 1)
+		{
+			CString tmp;
+			tmp.Format("(%.2lf, %.2lf)", m_components[idx].loc.x, m_components[idx].loc.y);
+			pDC->TextOut(pt[1].x + 1, pt[1].y + 1,tmp);
+		}
 	}
 
 	pen.DeleteObject();
@@ -525,61 +571,84 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 	brush.CreateSolidBrush(RGB(0, 0, 255));
 	pDC->SelectObject(&brush);
 
-	for(int i = 0;i < (int)m_targets.size();i++)
+	for(int i = 0;i < (int)m_iTargetIdx.size();i++)
 	{
-		CRect r((int)m_targets[i].x - sz, 
-				(int)m_targets[i].y - sz, 
-				(int)m_targets[i].x + sz,
-				(int)m_targets[i].y + sz);
+		int idx = m_iTargetIdx[i];
+		CRect r((int)m_components[idx].loc.x / m_iMapScale - sz, 
+				(int)m_components[idx].loc.y / m_iMapScale - sz, 
+				(int)m_components[idx].loc.x / m_iMapScale + sz,
+				(int)m_components[idx].loc.y / m_iMapScale + sz);
 		pDC->Ellipse(r);
+		
+		if(m_arrOptions[TARGET_LOCATION] == 1)
+		{
+			CString tmp;
+			tmp.Format("(%.2lf, %.2lf)", m_components[idx].loc.x, m_components[idx].loc.y);
+			pDC->TextOut((int)m_components[idx].loc.x / m_iMapScale + sz + 1, (int)m_components[idx].loc.y / m_iMapScale + sz + 1, tmp);
+		}
 	}
 
-	pen.DeleteObject();
-	pen.CreatePen(PS_SOLID, 1, RGB(255, 0, 0));
-	brush.DeleteObject();
-	brush.CreateSolidBrush(RGB(255, 0, 0));
-	
-	sz = 5;
-	int radis = 100;
+	int radis = 100 / m_iMapScale;
 	for(int i = 0;i < (int)m_iRadarIdx.size();i++)
 	{
+		pen.DeleteObject();
+		brush.DeleteObject();
+		if(m_components[m_iRadarIdx[i]].state == STATE_CONNECTED)
+		{
+			pen.CreatePen(PS_SOLID, 1, RGB(0, 255, 0));
+			brush.CreateSolidBrush(RGB(0, 255, 0));
+		}
+		else{
+			pen.CreatePen(PS_SOLID, 1, RGB(255, 0, 0));
+			brush.CreateSolidBrush(RGB(255, 0, 0));
+		}
 		pDC->SelectObject(&pen);
 		pDC->SelectObject(&brush);
 		int idx = m_iRadarIdx[i];
 		CPoint pt;
-		CRect r(static_cast<int>(m_components[idx].loc.x) - sz, 
-			static_cast<int>(m_components[idx].loc.y) - sz, 
-			static_cast<int>(m_components[idx].loc.x) + sz,
-			static_cast<int>(m_components[idx].loc.y) + sz);
+		CRect r(static_cast<int>(m_components[idx].loc.x / m_iMapScale) - sz, 
+			static_cast<int>(m_components[idx].loc.y / m_iMapScale) - sz, 
+			static_cast<int>(m_components[idx].loc.x / m_iMapScale) + sz,
+			static_cast<int>(m_components[idx].loc.y/ m_iMapScale) + sz);
 		pDC->FillRect(r, &brush);
+		pDC->Rectangle(&r);
 
-		CRect rt(static_cast<int>(m_components[idx].loc.x) - radis, 
-			static_cast<int>(m_components[idx].loc.y) - radis, 
-			static_cast<int>(m_components[idx].loc.x) + radis,
-			static_cast<int>(m_components[idx].loc.y) + radis);
+		if(m_arrOptions[RADAR_LOCATION] == 1)
+		{
+			CString tmp;
+			tmp.Format("(%.2lf, %.2lf)", m_components[idx].loc.x, m_components[idx].loc.y);
+			pDC->TextOut((int)m_components[idx].loc.x / m_iMapScale + sz + 1, (int)m_components[idx].loc.y / m_iMapScale + sz + 1, tmp);
+		}
 	
-		CPen p(PS_DOT, 1, RGB(0, 0, 0));
+		CRect rt(static_cast<int>(m_components[idx].loc.x / m_iMapScale) - radis, 
+				static_cast<int>(m_components[idx].loc.y / m_iMapScale) - radis, 
+				static_cast<int>(m_components[idx].loc.x / m_iMapScale) + radis,
+				static_cast<int>(m_components[idx].loc.y / m_iMapScale) + radis);
+	
+		CPen p(PS_DOT, 1, RGB(255, 255, 255));
 		pDC->SelectObject(&p);
 
 		CBrush *b = CBrush::FromHandle( (HBRUSH)GetStockObject(NULL_BRUSH));
 		pDC->SelectObject(b);
 
-		pDC->MoveTo(static_cast<int>(m_components[idx].loc.x), static_cast<int>(m_components[idx].loc.y));
-		pDC->LineTo(static_cast<int>(m_components[idx].loc.x) + radis * 3 / 5, static_cast<int>(m_components[idx].loc.y) + radis * 4 / 5);
+		pDC->MoveTo(static_cast<int>(m_components[idx].loc.x / m_iMapScale), static_cast<int>(m_components[idx].loc.y / m_iMapScale));
+		pDC->LineTo(static_cast<int>(m_components[idx].loc.x / m_iMapScale) + radis * 3 / 5, static_cast<int>(m_components[idx].loc.y / m_iMapScale) + radis * 4 / 5);
 		pDC->Ellipse(rt);
 	}
 
-	int tx = 340;
-	int ty = 480;
-	TEXTMETRIC tm;
-	pDC->GetTextMetrics(&tm);
-	pDC->SetTextColor(RGB(50,50,50));
-	CString str;
-	str.Format("Simulation Time: %d s", m_time);
-	pDC->SetBkColor(RGB(255, 255, 255));
-	pDC->TextOut(tx, ty, str);
-
+	if(m_iSelected != -1)
+	{
+		pen.DeleteObject();
+		pen.CreatePen(PS_SOLID, 1, RGB(200, 100, 0));
+		pDC->SelectObject(pen);
+		CRect rt(static_cast<int>(m_components[m_iSelected].loc.x / m_iMapScale) - 15, 
+			static_cast<int>(m_components[m_iSelected].loc.y / m_iMapScale) - 15, 
+			static_cast<int>(m_components[m_iSelected].loc.x / m_iMapScale) + 15,
+			static_cast<int>(m_components[m_iSelected].loc.y / m_iMapScale) + 15);
+		pDC->Ellipse(rt);
+	}
 	
+	pDC->SelectObject(oFont);
 	pDC->SelectObject(oPen);
 	pDC->SelectObject(oBrush);
 }
@@ -663,25 +732,23 @@ void CEnvConsoleDlg::OnBnClickedStart()
 void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: Add your message handler code here and/or call default
+	for(int i = 0;i < (int)m_iTargetIdx.size();++i)
+		m_components[m_iTargetIdx[i]].Move();
 
-	/*
-	char sendBuf[200];
-	sprintf_s(sendBuf, "%lf,%lf,%lf", m_targets[i].x, m_targets[i].y, 0.);
-	*/
 	for(int k = 0;k < (int)m_iRadarIdx.size();k++)
 	{
 		CString buf;
-		for(int i = 0;i < (int)m_targets.size();++i)
+		for(int i = 0;i < (int)m_iTargetIdx.size();++i)
 		{
-			m_targets[i].Move();
+			int idx = m_iTargetIdx[i];
 			double dis = Distance(	m_components[m_iRadarIdx[k]].loc.x,
 									m_components[m_iRadarIdx[k]].loc.y,  
-									m_targets[i].x,  
-									m_targets[i].y);
+									m_components[idx].loc.x,  
+									m_components[idx].loc.y);
 			if(dis > 100.)
-				continue;			
+				continue;
 			CString tmp;
-			tmp.Format("%lf,%lf,%lf", m_targets[i].x, m_targets[i].y, 0.);
+			tmp.Format("%lf,%lf,%lf", m_components[idx].loc.x, m_components[idx].loc.y, m_components[idx].loc.z);
 			buf += tmp;
 			buf += ";";
 		}
@@ -789,6 +856,7 @@ void CEnvConsoleDlg::OnBnClickedDisconnect()
 	m_btnConnectAll.EnableWindow(TRUE);
 	m_btnDisconnect.EnableWindow(FALSE);
 	m_btnStart.EnableWindow(FALSE);
+	InvalidateRect(&m_canvas);
 }
 
 
@@ -807,24 +875,23 @@ void CEnvConsoleDlg::OnBnClickedAdd()
 		CString strIP;
 		switch(type)
 		{
-		case 0:
+		case TYPE_MOUNTAIN:
 			m_iStaticIdx.push_back(m_components.size());
 			m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(x, y), 0, CString("--"), 0));
 			break;
-		case 1:
+		case TYPE_RADAR:
 			port = AddDlg.m_port;
 			ip = AddDlg.m_ip;
 			strIP.Format(_T("%d.%d.%d.%d"), (ip>>24)&0xff, (ip>>16)&0xff, (ip>>8)&0xff, ip&0xff ) ;  
 			m_iRadarIdx.push_back(m_components.size());
 			m_components.push_back(TComponent(m_components.size() + 1, 1, TLocation(x, y), 0, strIP, port));
 			break;
-		case 2:
+		case TYPE_TARGET:
 			vx = AddDlg.m_vx;
 			vy = AddDlg.m_vy;
 			vz = AddDlg.m_vz;
 			m_iTargetIdx.push_back(m_components.size());
-			m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(x, y), 0, CString("--"), 0));
-			m_targets.push_back(Target(x, y, z, vx, vy, 0));
+			m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(x, y), 0, CString("--"), 0, TSpeed(vx, vy, 0)));
 			break;
 		default:;
 		}
@@ -844,6 +911,7 @@ void CEnvConsoleDlg::OnNMCustomdrawMapScale(NMHDR *pNMHDR, LRESULT *pResult)
 	str.Format("%d", m_iMapScale);
 	GetDlgItem(IDC_MAP_SCALE_T)->SetWindowTextA(str);
 	UpdateData(FALSE);
+	InvalidateRect(&m_canvas);
 }
 
 
@@ -903,4 +971,141 @@ void CEnvConsoleDlg::OnBnClickedCancel()
 	else {
 		return ;
 	}
+}
+
+void CEnvConsoleDlg::OnLvnItemchangedList(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
+	// TODO: Add your control notification handler code here
+	*pResult = 0;
+	int i;
+	for(i= 0; i < m_list.GetItemCount(); i++)
+	{
+		if( m_list.GetItemState(i, LVIS_SELECTED) == LVIS_SELECTED )
+		{
+			GetDlgItem(IDC_DELETE)->EnableWindow(TRUE);
+			break;
+		}
+	}
+	m_iSelected = i;
+	InvalidateRect(&m_canvas);
+}
+
+
+void CEnvConsoleDlg::OnBnClickedDelete()
+{
+	// TODO: Add your control notification handler code here
+/*
+	int i;
+	for(i = 0; i < m_list.GetItemCount(); i++)
+	{
+		if( m_list.GetItemState(i, LVIS_SELECTED) == LVIS_SELECTED )
+			break;
+	}
+*/
+	std::vector<TComponent>::iterator it = m_components.begin() + m_iSelected;
+	m_components.erase(it);
+	UpdateList();
+	InvalidateRect(&m_canvas);
+	GetDlgItem(IDC_DELETE)->EnableWindow(FALSE);
+	m_iSelected = -1;
+}
+
+void CEnvConsoleDlg::OnBnClickedShowStaticObjs()
+{
+	// TODO: Add your control notification handler code here
+	CButton *pCheck = (CButton *)GetDlgItem(IDC_SHOW_STATIC_OBJS);
+	if(pCheck->GetCheck())
+		m_arrOptions[HIDE_STATIC_OBJ] = 0;
+	else
+		m_arrOptions[HIDE_STATIC_OBJ] = 1;
+
+	UpdateList();
+}
+
+
+void CEnvConsoleDlg::OnBnClickedImport()
+{
+	// TODO: Add your control notification handler code here
+	CString strFile = _T("");
+	CFileDialog  dlgFile(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Describe Files (*.txt)|*.txt|All Files (*.*)|*.*||"), NULL);
+
+	if(IDCANCEL == dlgFile.DoModal())
+		return ;
+/*
+	strFile = dlgFile.GetPathName();
+	CFile file(strFile, CFile::modeRead);
+*/
+}
+
+
+HBRUSH CEnvConsoleDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
+{
+	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+	pDC->SelectObject(m_font);
+	// TODO:  Change any attributes of the DC here
+
+	// TODO:  Return a different brush if the default is not desired
+	return hbr;
+}
+
+
+void CEnvConsoleDlg::OnRButtonDown(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+	CPoint tl = m_canvas.TopLeft();
+	CPoint br = m_canvas.BottomRight();
+	if(point.x > tl.x && point.y > tl.y && point.x < br.x && point.y < br.y)
+	{
+		CMenu menu;
+		VERIFY(menu.LoadMenuA(IDR_MENU_CANVAS));
+		CMenu *popup = menu.GetSubMenu(0);
+		ASSERT(popup != NULL);
+		CWnd *pWndPopupOwner = this;
+	
+		while(pWndPopupOwner->GetStyle() & WS_CHILD)
+			pWndPopupOwner = pWndPopupOwner->GetParent();
+
+		popup->CheckMenuItem(0, MF_BYPOSITION | (m_arrOptions[TARGET_LOCATION] == 1 ?MF_CHECKED :MF_UNCHECKED));
+		popup->CheckMenuItem(1, MF_BYPOSITION | (m_arrOptions[RADAR_LOCATION] == 1 ?MF_CHECKED :MF_UNCHECKED));
+		popup->CheckMenuItem(2, MF_BYPOSITION | (m_arrOptions[STATIC_LOCATION] == 1 ?MF_CHECKED :MF_UNCHECKED));
+
+		ClientToScreen(&point);
+		popup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, pWndPopupOwner);
+
+	}
+	CDialogEx::OnRButtonDown(nFlags, point);
+}
+
+
+void CEnvConsoleDlg::OnTargetlocation()
+{
+	// TODO: Add your command handler code here
+	if(m_arrOptions[TARGET_LOCATION] == 1)
+		m_arrOptions[TARGET_LOCATION] = 0;
+	else 
+		m_arrOptions[TARGET_LOCATION] = 1;
+	InvalidateRect(&m_canvas);
+}
+
+
+void CEnvConsoleDlg::OnRadarLocation()
+{
+	// TODO: Add your command handler code here
+	if(m_arrOptions[RADAR_LOCATION] == 1)
+		m_arrOptions[RADAR_LOCATION] = 0;
+	else 
+		m_arrOptions[RADAR_LOCATION] = 1;
+	InvalidateRect(&m_canvas);
+}
+
+
+void CEnvConsoleDlg::OnStaticLocation()
+{
+	// TODO: Add your command handler code here
+	if(m_arrOptions[STATIC_LOCATION] == 1)
+		m_arrOptions[STATIC_LOCATION] = 0;
+	else 
+		m_arrOptions[STATIC_LOCATION] = 1;
+	InvalidateRect(&m_canvas);
 }

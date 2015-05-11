@@ -11,9 +11,9 @@
  unsigned int seed = 1;
 int genRand(int min, int max)
 {
-	seed += 2;
-	seed = seed % 1024;
-	seed += (unsigned int)time(0);
+	seed += (max / 2 + min);
+	seed = seed % UINT_MAX;
+	seed += (unsigned int)time(NULL);
 	srand(seed);
 	return rand() % (max + 1 - min) + min;
 }
@@ -65,6 +65,7 @@ void CAddDialog::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CAddDialog, CDialogEx)
 	ON_CBN_SELCHANGE(IDC_TYPE, &CAddDialog::OnCbnSelchangeType)
 	ON_BN_CLICKED(IDOK, &CAddDialog::OnBnClickedOk)
+	ON_WM_CTLCOLOR()
 END_MESSAGE_MAP()
 
 
@@ -74,12 +75,16 @@ END_MESSAGE_MAP()
 BOOL CAddDialog::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
+	m_font.CreatePointFont(80, "Verdana", NULL);
+	GetDlgItem(IDC_STATIC)->SetFont(&m_font);
+	GetDlgItem(IDOK)->SetFont(&m_font);
+	GetDlgItem(IDCANCEL)->SetFont(&m_font);
 
 	// TODO:  Add extra initialization here
-	m_comboType.AddString("Mountain");
-	m_comboType.AddString("Radar");
 	m_comboType.AddString("Target");
-	
+	m_comboType.AddString("Radar");
+	m_comboType.AddString("Mountain");
+
 	m_comboType.SelectString(0, "Mountain");
 	GetDlgItem(IDC_VX)->EnableWindow(FALSE);
 	GetDlgItem(IDC_VY)->EnableWindow(FALSE);
@@ -102,7 +107,7 @@ BOOL CAddDialog::OnInitDialog()
 	host = gethostbyname(hostName); 
 	m_strIP = inet_ntoa(*(struct in_addr *)host->h_addr_list[0]);
 */
-	// For Debug: set m_strIP to be loopback ip
+	// For Debug: set m_strIP to be 127.0.0.1
 	m_ip = ntohl(inet_addr(m_strIP));
 	m_port = 6000;
 	UpdateData(FALSE);
@@ -117,24 +122,24 @@ void CAddDialog::OnCbnSelchangeType()
 	int index = m_comboType.GetCurSel();
 	switch(index)
 	{
-	case 0:
-		GetDlgItem(IDC_VX)->EnableWindow(FALSE);
-		GetDlgItem(IDC_VY)->EnableWindow(FALSE);
-		GetDlgItem(IDC_VZ)->EnableWindow(FALSE);
+	case TYPE_TARGET:
+		GetDlgItem(IDC_VX)->EnableWindow(TRUE);
+		GetDlgItem(IDC_VY)->EnableWindow(TRUE);
+		GetDlgItem(IDC_VZ)->EnableWindow(TRUE);
 		GetDlgItem(IDC_IPADDRESS)->EnableWindow(FALSE);
 		GetDlgItem(IDC_PORT)->EnableWindow(FALSE);
 		break;
-	case 1:
+	case TYPE_RADAR:
 		GetDlgItem(IDC_VX)->EnableWindow(FALSE);
 		GetDlgItem(IDC_VY)->EnableWindow(FALSE);
 		GetDlgItem(IDC_VZ)->EnableWindow(FALSE);
 		GetDlgItem(IDC_IPADDRESS)->EnableWindow(TRUE);
 		GetDlgItem(IDC_PORT)->EnableWindow(TRUE);
 		break;
-	case 2:
-		GetDlgItem(IDC_VX)->EnableWindow(TRUE);
-		GetDlgItem(IDC_VY)->EnableWindow(TRUE);
-		GetDlgItem(IDC_VZ)->EnableWindow(TRUE);
+	case TYPE_MOUNTAIN:
+		GetDlgItem(IDC_VX)->EnableWindow(FALSE);
+		GetDlgItem(IDC_VY)->EnableWindow(FALSE);
+		GetDlgItem(IDC_VZ)->EnableWindow(FALSE);
 		GetDlgItem(IDC_IPADDRESS)->EnableWindow(FALSE);
 		GetDlgItem(IDC_PORT)->EnableWindow(FALSE);
 		break;
@@ -150,4 +155,15 @@ void CAddDialog::OnBnClickedOk()
 	UpdateData(TRUE);
 	m_type = m_comboType.GetCurSel();
 	CDialogEx::OnOK();
+}
+
+
+HBRUSH CAddDialog::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
+{
+	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+	pDC->SelectObject(m_font);
+	// TODO:  Change any attributes of the DC here
+
+	// TODO:  Return a different brush if the default is not desired
+	return hbr;
 }

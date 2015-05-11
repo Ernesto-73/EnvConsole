@@ -8,10 +8,8 @@
 #include "atltypes.h"
 #include "afxwin.h"
 
-enum{TYPE_TARGET = 0, TYPE_RADAR, TYPE_MOUNTAIN};
 enum{STATE_DISCONNECTED = 0, STATE_CONNECTED};
-
-
+enum{HIDE_STATIC_OBJ = 0, TARGET_LOCATION, RADAR_LOCATION , STATIC_LOCATION, NUM};
 
 typedef struct TLocation{
 	TLocation()
@@ -37,38 +35,26 @@ typedef struct TLocation{
 	double z;
 }TLocation;
 
-typedef struct Target{
-	Target()
+typedef struct TSpeed{
+	TSpeed(){}
+	TSpeed(double _vx, double _vy, double _vz)
 	{
-		
-	}
-	void Move()
-	{
-		x += vx;
-		y += vy;
-	}
-	Target(double _x, double _y, double _z, double _vx, double _vy, double _vz)
-	{
-		x = _x;
-		y = _y;
-		z = _z;
 		vx = _vx;
 		vy = _vy;
 		vz = _vz;
 	}
-	double x;
-	double y;
-	double z;
+
 	double vx;
 	double vy;
 	double vz;
-}Target;
+}TSpeed;
 
 typedef struct TComponent{
 	TComponent()
 	{
 		// default constructor.
 	}
+
 	TComponent(int _no, int _type, TLocation &_loc, int _state, CString &_ip, int _host)
 	{
 		no = _no;
@@ -81,12 +67,35 @@ typedef struct TComponent{
 		host = _host;
 	}
 
+	TComponent(int _no, int _type, TLocation &_loc, int _state, CString &_ip, int _host, TSpeed &t)
+	{
+		no = _no;
+		type = _type;
+		loc.x = _loc.x;
+		loc.y = _loc.y;
+		loc.z = _loc.z;
+		state = _state;
+		ip = _ip;
+		host = _host;
+
+		speed.vx = t.vx;
+		speed.vy = t.vy;
+		speed.vz = t.vz;
+	}
+	
+	void Move()
+	{
+		loc.x += speed.vx;
+		loc.y += speed.vy;
+	}
+
 	int no;
 	int type;
 	TLocation loc;
 	int state;
 	CString ip;
 	int host;
+	TSpeed speed;
 }TComponent;
 
 // CEnvConsoleDlg dialog
@@ -120,19 +129,24 @@ private:
 public:
 	CString m_strType[3];
 	CString m_strState[2];
+
 	std::vector<int> m_iTargetIdx;
 	std::vector<int> m_iStaticIdx;
 	std::vector<int> m_iRadarIdx;
+
+	std::vector<bool> m_bIsConnected; // Just for radar components.
+
 	afx_msg void OnBnClickedConnAll();
 private:
 	std::vector<SOCKET> m_socket;
 	void UpdateList(void);
 	CRect m_canvas;
+	int m_arrOptions[NUM];
 public:
 	void Draw(CDC * pDC);
 	CStatic m_seperator;
 	afx_msg void OnNMCustomdrawList(NMHDR *pNMHDR, LRESULT *pResult);
-	std::vector<Target> m_targets;
+	
 	afx_msg void OnBnClickedStart();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
@@ -144,7 +158,7 @@ public:
 	CButton m_btnStart;
 	CButton m_btnConnectAll;
 	CButton m_btnDisconnect;
-	std::vector<bool> m_bIsConnected;
+	
 	bool m_bIsAllConnected;
 	afx_msg void OnBnClickedDisconnect();
 	bool m_bIsStarted;
@@ -166,4 +180,15 @@ public:
 	double Distance(double x1, double y1, double x2, double y2);
 	void CheckConnection(void);
 	afx_msg void OnBnClickedCancel();
+	afx_msg void OnLvnItemchangedList(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnBnClickedDelete();
+	afx_msg void OnBnClickedShowStaticObjs();
+	afx_msg void OnBnClickedImport();
+	CFont m_font;
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+	int m_iSelected;
+	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnTargetlocation();
+	afx_msg void OnRadarLocation();
+	afx_msg void OnStaticLocation();
 };

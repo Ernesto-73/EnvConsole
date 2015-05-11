@@ -1,6 +1,7 @@
 #pragma once
 #include "afxwin.h"
 
+enum{TYPE_MOUNTAIN = 0, TYPE_RADAR, TYPE_TARGET};
 
 // CAddDialog dialog
 
@@ -36,4 +37,6 @@ public:
 	afx_msg void OnBnClickedOk();
 	int m_type;
 	CString m_strIP;
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+	CFont m_font;
 };
