@@ -7,6 +7,10 @@
 #include "EnvConsoleDlg.h"
 #include "afxdialogex.h"
 #include "AddDialog.h"
+ 
+#import "msxml3.dll"
+ 
+using namespace MSXML2;
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -71,6 +75,7 @@ CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 	this->m_small = CRect(0, 0, 535, 600);
 	this->m_canvas = CRect(10, 10, 510, 510);
 	memset(m_arrOptions, 0, sizeof(int) * NUM);
+	m_arrOptions[TARGET_LOCATION] = 1;
 }
 
 void CEnvConsoleDlg::DoDataExchange(CDataExchange* pDX)
@@ -126,6 +131,7 @@ BEGIN_MESSAGE_MAP(CEnvConsoleDlg, CDialogEx)
 	ON_COMMAND(ID_TARGET_LOCATION, &CEnvConsoleDlg::OnTargetlocation)
 	ON_COMMAND(ID_RADAR_LOCATION, &CEnvConsoleDlg::OnRadarLocation)
 	ON_COMMAND(ID_STATIC_LOCATION, &CEnvConsoleDlg::OnStaticLocation)
+	ON_BN_CLICKED(IDC_Export, &CEnvConsoleDlg::OnBnClickedExport)
 END_MESSAGE_MAP()
 
 
@@ -181,7 +187,7 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	m_list.SetExtendedStyle(LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT );
 	
 	m_list.MoveWindow(&r);
-	m_list.InsertColumn(0, "No.", 0, 40);
+	m_list.InsertColumn(0, "No.", 0, 50);
 	m_list.InsertColumn(1, "Type", 0, 70);
 	m_list.InsertColumn(2, "Location(Origin)", 0, 110);
 	m_list.InsertColumn(3, "State", 0, 80);
@@ -189,7 +195,7 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	m_list.InsertColumn(5, "Port", 0, 50);
 
 	m_list.SetFont(&m_font);
-
+/*
 	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(300.9, 200.97), 0, CString("127.0.0.1"), 6000));
 	double v = (200. + genRand(1, 30)) / 1000.;
 	double vx = -0.6 * v;
@@ -198,8 +204,6 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 
 	m_components.push_back(TComponent(m_components.size() + 1, TYPE_TARGET, TLocation(421.23, 87.03), 0, CString("--"), 0, TSpeed(vx, vy, vz)));
 	m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(331.86, 132.0), 0, CString("--"), 0));
-	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(210.75, 250.01), STATE_DISCONNECTED, CString("127.0.0.1"), 6001));
-	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(390.57, 300.093), STATE_DISCONNECTED, CString("127.0.0.1"), 6002));
 	m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(174.49, 338.99), 0, CString("--"), 0));
 	m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(450.32, 197.91), 0, CString("--"), 0));
 
@@ -224,19 +228,13 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	vz = 0;
 	m_components.push_back(TComponent(m_components.size() + 1, TYPE_TARGET, TLocation(239.34, 230.92), 0, CString("--"), 0, TSpeed(vx, vy, vz)));
 
-	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(300.90, 200.97), 0, CString("10.106.3.128"), 6000));
-
-	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(120.57, 119.81), 0, CString("127.0.0.1"), 6004));
-
-	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(420.07, 99.81), 0, CString("127.0.0.1"), 6005));
-
 	v = (90. + genRand(1, 30)) / 1000.;
 	vx = 0.1 * v;
 	vy = -0.8 * v;
 	vz = 0;
 	m_components.push_back(TComponent(m_components.size() + 1, TYPE_TARGET, TLocation(331.84, 330.12), 0, CString("--"), 0, TSpeed(vx, vy, vz)));
 
-	for(int i = 0;i < 25;i++)
+	for(int i = 0;i < 5;i++)
 	{
 		Sleep(50);
 		double x = genRand(1, 3160) * genRand(1, 316) / 99.;
@@ -245,7 +243,7 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 		m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(x, y), 0, CString("--"), 0));
 	}
 	UpdateList();
-
+*/
 	this->MoveWindow(&m_small);
 	CenterWindow();
 
@@ -290,6 +288,15 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	UpdateData(FALSE);
 	
 	((CButton *)GetDlgItem(IDC_SHOW_STATIC_OBJS))->SetCheck(1);
+
+	ImportFromFile(_T("E:\\map_0.xml"));
+	UpdateList();
+	InvalidateRect(&m_canvas);
+
+	if(m_components.size() == 0)
+		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(FALSE);
+	else 
+		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(TRUE);
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -387,7 +394,7 @@ void CEnvConsoleDlg::OnBnClickedConnAll()
 		SOCKADDR_IN addrSrv;
 		addrSrv.sin_addr.S_un.S_addr = inet_addr(m_components[idx].ip);
 		addrSrv.sin_family = AF_INET;
-		addrSrv.sin_port = htons(m_components[idx].host);
+		addrSrv.sin_port = htons(static_cast<u_short>(m_components[idx].host));
 
 		if(!connect(sock, (SOCKADDR *)&addrSrv, sizeof(SOCKADDR)))
 		{
@@ -463,7 +470,7 @@ void CEnvConsoleDlg::UpdateList(void)
 
 		int pos = m_list.GetItemCount();
 		CString str;
-		str.Format("%d", it->no);
+		str.Format("#%d", it->no);
 		int nRow = m_list.InsertItem(pos, str);
 		m_list.SetItemText(nRow, 1, m_strType[it->type]);
 		str.Format("(%.2f, %.2f)",it->loc.x,it->loc.y);
@@ -485,13 +492,16 @@ void CEnvConsoleDlg::UpdateList(void)
 
 void CEnvConsoleDlg::Draw(CDC * pDC)
 {
+	// Reset background color.
 	CRect r;
 	GetClientRect(&r);
 	pDC->FillSolidRect(&r,RGB(0, 0, 0));
 
+	// Set the text position
 	int tx = 345;
 	int ty = 480;
 
+	// Set font size && color
 	TEXTMETRIC tm;
 	pDC->GetTextMetrics(&tm);
 	pDC->SetTextColor(RGB(200, 200, 200));
@@ -503,6 +513,7 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 	CFont *oFont = pDC->SelectObject(&font);
 	font.Detach();
 
+	// Set font text backgroud color
 	pDC->SetBkColor(RGB(0, 0, 0));
 	pDC->TextOut(tx, ty, str);
 
@@ -511,6 +522,7 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 	CBrush brush(RGB(0, 0, 0));
 	CBrush *oBrush = pDC->SelectObject(&brush);
 
+	// Draw the border
 	pDC->MoveTo(0, 0);
 	pDC->LineTo(499, 0);
 
@@ -523,6 +535,7 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 	pDC->MoveTo(499, 0);
 	pDC->LineTo(499, 499);
 
+	// Draw grids
 	pen.DeleteObject();
 	pen.CreatePen(PS_DOT, 1, RGB(0, 255, 0));
 	pDC->SelectObject(&pen);
@@ -536,6 +549,7 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 		pDC->LineTo(i * 50 - 1, 499);
 	}
 
+	// Draw static objects
 	pen.DeleteObject();
 	pen.CreatePen(PS_SOLID, 1, RGB(0, 255, 0));
 	pDC->SelectObject(&pen);
@@ -563,6 +577,7 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 		}
 	}
 
+	// Draw target objects
 	pen.DeleteObject();
 	pen.CreatePen(PS_SOLID, 1, RGB(0, 0, 255));
 	pDC->SelectObject(&pen);
@@ -588,6 +603,7 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 		}
 	}
 
+	// Draw radar objects
 	int radis = 100 / m_iMapScale;
 	for(int i = 0;i < (int)m_iRadarIdx.size();i++)
 	{
@@ -636,11 +652,16 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 		pDC->Ellipse(rt);
 	}
 
+	// Draw selected objects.
+	pen.DeleteObject();
+	pen.CreatePen(PS_SOLID, 1, RGB(200, 100, 0));
+	pDC->SelectObject(&pen);
+
+	CBrush *b = CBrush::FromHandle( (HBRUSH)GetStockObject(NULL_BRUSH));
+	pDC->SelectObject(b);
+
 	if(m_iSelected != -1)
 	{
-		pen.DeleteObject();
-		pen.CreatePen(PS_SOLID, 1, RGB(200, 100, 0));
-		pDC->SelectObject(pen);
 		CRect rt(static_cast<int>(m_components[m_iSelected].loc.x / m_iMapScale) - 15, 
 			static_cast<int>(m_components[m_iSelected].loc.y / m_iMapScale) - 15, 
 			static_cast<int>(m_components[m_iSelected].loc.x / m_iMapScale) + 15,
@@ -798,7 +819,7 @@ void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 } 
 
 
-BOOL CEnvConsoleDlg::OnEraseBkgnd(CDC* pDC)
+BOOL CEnvConsoleDlg::OnEraseBkgnd(CDC* /*pDC*/)
 {
 	// TODO: Add your message handler code here and/or call default
 	return TRUE;
@@ -877,33 +898,41 @@ void CEnvConsoleDlg::OnBnClickedAdd()
 		{
 		case TYPE_MOUNTAIN:
 			m_iStaticIdx.push_back(m_components.size());
-			m_components.push_back(TComponent(m_components.size() + 1, 2, TLocation(x, y), 0, CString("--"), 0));
+			m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(x, y), 0, CString("--"), 0));
 			break;
+
 		case TYPE_RADAR:
 			port = AddDlg.m_port;
 			ip = AddDlg.m_ip;
 			strIP.Format(_T("%d.%d.%d.%d"), (ip>>24)&0xff, (ip>>16)&0xff, (ip>>8)&0xff, ip&0xff ) ;  
 			m_iRadarIdx.push_back(m_components.size());
-			m_components.push_back(TComponent(m_components.size() + 1, 1, TLocation(x, y), 0, strIP, port));
+			m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(x, y), 0, strIP, port));
 			break;
+
 		case TYPE_TARGET:
-			vx = AddDlg.m_vx;
-			vy = AddDlg.m_vy;
-			vz = AddDlg.m_vz;
+			vx = AddDlg.m_vx / 1000.0;
+			vy = AddDlg.m_vy / 1000.0;
+			vz = AddDlg.m_vz / 1000.0;
 			m_iTargetIdx.push_back(m_components.size());
-			m_components.push_back(TComponent(m_components.size() + 1, 0, TLocation(x, y), 0, CString("--"), 0, TSpeed(vx, vy, 0)));
+			m_components.push_back(TComponent(m_components.size() + 1, TYPE_TARGET, TLocation(x, y), 0, CString("--"), 0, TSpeed(vx, vy, 0)));
 			break;
+
 		default:;
 		}
 		UpdateList();
 		InvalidateRect(&m_canvas);
 	}
+
+	if(m_components.size() == 0)
+		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(FALSE);
+	else 
+		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(TRUE);
 }
 
 
 void CEnvConsoleDlg::OnNMCustomdrawMapScale(NMHDR *pNMHDR, LRESULT *pResult)
 {
-	LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
+//	LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
 	// TODO: Add your control notification handler code here
 	*pResult = 0;
 	UpdateData(TRUE);
@@ -987,7 +1016,10 @@ void CEnvConsoleDlg::OnLvnItemchangedList(NMHDR *pNMHDR, LRESULT *pResult)
 			break;
 		}
 	}
-	m_iSelected = i;
+	if(i !=  m_list.GetItemCount())
+		m_iSelected = i;
+	else 
+		m_iSelected = -1;
 	InvalidateRect(&m_canvas);
 }
 
@@ -1009,6 +1041,10 @@ void CEnvConsoleDlg::OnBnClickedDelete()
 	InvalidateRect(&m_canvas);
 	GetDlgItem(IDC_DELETE)->EnableWindow(FALSE);
 	m_iSelected = -1;
+	if(m_components.size() == 0)
+		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(FALSE);
+	else 
+		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(TRUE);
 }
 
 void CEnvConsoleDlg::OnBnClickedShowStaticObjs()
@@ -1027,22 +1063,31 @@ void CEnvConsoleDlg::OnBnClickedShowStaticObjs()
 void CEnvConsoleDlg::OnBnClickedImport()
 {
 	// TODO: Add your control notification handler code here
+
 	CString strFile = _T("");
-	CFileDialog  dlgFile(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Describe Files (*.txt)|*.txt|All Files (*.*)|*.*||"), NULL);
+	CFileDialog  dlgFile(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Describe Files (*.xml)|*.xml|All Files (*.*)|*.*||"), NULL);
 
 	if(IDCANCEL == dlgFile.DoModal())
 		return ;
-/*
 	strFile = dlgFile.GetPathName();
-	CFile file(strFile, CFile::modeRead);
-*/
+
+	if(IDNO == MessageBox("Are you sure to import file '" + strFile +"'?", "Import File", MB_YESNO|MB_ICONINFORMATION))
+		return ;
+
+	ImportFromFile(strFile);
+	UpdateList();
+	InvalidateRect(&m_canvas);
+	if(m_components.size() == 0)
+		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(FALSE);
+	else 
+		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(TRUE);
 }
 
 
 HBRUSH CEnvConsoleDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 {
 	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
-	pDC->SelectObject(m_font);
+	pDC->SelectObject(&m_font);
 	// TODO:  Change any attributes of the DC here
 
 	// TODO:  Return a different brush if the default is not desired
@@ -1108,4 +1153,244 @@ void CEnvConsoleDlg::OnStaticLocation()
 	else 
 		m_arrOptions[STATIC_LOCATION] = 1;
 	InvalidateRect(&m_canvas);
+}
+
+
+void CEnvConsoleDlg::OnBnClickedExport()
+{
+	// TODO: Add your control notification handler code here
+
+	CString strFile = _T("");
+	CFileDialog  dlgFile(FALSE);
+	dlgFile.m_ofn.lpstrTitle = _T("Export");
+	dlgFile.m_ofn.lpstrFilter = _T("XML Files (*.xml)");
+	dlgFile.m_ofn.lpstrDefExt = _T("xml");
+	if(IDCANCEL == dlgFile.DoModal())
+		return ;
+	strFile = dlgFile.GetPathName();
+
+	::CoInitialize(NULL);
+	MSXML2::IXMLDOMDocumentPtr XMLDOC;
+	MSXML2::IXMLDOMElementPtr XMLROOT;
+
+	HRESULT HR = XMLDOC.CreateInstance(_uuidof(MSXML2::DOMDocument30));
+	if(!SUCCEEDED(HR))
+	{
+		MessageBox(_T("Faild!"));
+		return ;
+	}
+	XMLROOT = XMLDOC->createElement("Env_components");
+	XMLDOC->appendChild(XMLROOT);
+	CString strTmp;
+	MSXML2::IXMLDOMElementPtr XMLNODE, nodeIP, nodePort, nodeLoc, nodeType, nodeX, nodeY, nodeZ, nodeSpeed, nodeVx, nodeVy, nodeVz;
+	for(int i = 0;i < (int)m_components.size();i++)
+	{
+
+		XMLNODE = XMLDOC->createElement((_bstr_t)("components"));
+
+		// No.
+		strTmp.Format("%d", m_components[i].no);
+		XMLNODE->setAttribute("no", (_variant_t)strTmp);
+
+		// type 
+		strTmp.Format("%d", m_components[i].type);
+		XMLNODE->setAttribute("type", (_variant_t)strTmp);
+
+		// type
+		nodeType = XMLDOC->createElement((_bstr_t)("type"));
+		nodeType->put_text((_bstr_t)m_strType[m_components[i].type]);
+
+		// location
+		nodeLoc = XMLDOC->createElement((_bstr_t)("location"));
+
+		nodeX = XMLDOC->createElement((_bstr_t)("x"));
+		strTmp.Format("%f", m_components[i].loc.x);
+		nodeX->put_text((_bstr_t)strTmp);
+		nodeLoc->appendChild(nodeX);
+
+		nodeY = XMLDOC->createElement((_bstr_t)("y"));
+		strTmp.Format("%f", m_components[i].loc.y);
+		nodeY->put_text((_bstr_t)strTmp);
+		nodeLoc->appendChild(nodeY);
+
+		nodeZ = XMLDOC->createElement((_bstr_t)("z"));
+		strTmp.Format("%f", m_components[i].loc.z);
+		nodeZ->put_text((_bstr_t)strTmp);
+		nodeLoc->appendChild(nodeZ);
+
+		// ip address and port info.
+		if(m_components[i].type == TYPE_RADAR)
+		{
+			nodeIP = XMLDOC->createElement((_bstr_t)("ip_address"));
+			nodePort = XMLDOC->createElement((_bstr_t)("port"));
+			nodeIP->put_text((_bstr_t)m_components[i].ip);
+			strTmp.Format("%d", m_components[i].host);
+			nodePort->put_text((_bstr_t)strTmp);
+
+			XMLNODE->appendChild(nodeIP);
+			XMLNODE->appendChild(nodePort);
+		}
+
+		if(m_components[i].type == TYPE_TARGET)
+		{
+			nodeSpeed = XMLDOC->createElement((_bstr_t)("speed"));
+
+			nodeVx = XMLDOC->createElement((_bstr_t)("vx"));
+			strTmp.Format("%f", m_components[i].speed.vx);
+			nodeVx->put_text((_bstr_t)strTmp);
+			nodeSpeed->appendChild(nodeVx);
+
+			nodeVy = XMLDOC->createElement((_bstr_t)("vy"));
+			strTmp.Format("%f", m_components[i].speed.vy);
+			nodeVy->put_text((_bstr_t)strTmp);
+			nodeSpeed->appendChild(nodeVy);
+
+			nodeVz = XMLDOC->createElement((_bstr_t)("vz"));
+			strTmp.Format("%f", m_components[i].speed.vz);
+			nodeVz->put_text((_bstr_t)strTmp);
+			nodeSpeed->appendChild(nodeVz);
+
+			XMLNODE->appendChild(nodeSpeed);
+		}
+
+		XMLNODE->appendChild(nodeType);
+		XMLNODE->appendChild(nodeLoc);
+		XMLROOT->appendChild(XMLNODE);
+	}
+	CComVariant FileName(strFile);
+	XMLDOC->save(FileName);
+	XMLNODE.Release();
+	XMLROOT.Release();
+	nodeIP.Release();
+	nodePort.Release();
+	nodeType.Release();
+	nodeLoc.Release();
+	nodeX.Release();
+	nodeY.Release();
+	nodeZ.Release();
+	nodeSpeed.Release();
+	nodeVx.Release();
+	nodeVy.Release();
+	nodeVz.Release();
+	XMLDOC.Release();
+	::CoUninitialize();
+}
+
+
+void CEnvConsoleDlg::ImportFromFile(CString strName)
+{
+	::CoInitialize(NULL);
+	MSXML2::IXMLDOMDocumentPtr xmlDoc; 
+	MSXML2::IXMLDOMElementPtr nodeRoot;
+	MSXML2::IXMLDOMNodeListPtr nodes;
+	MSXML2::IXMLDOMNodePtr node, subnode;
+	HRESULT HR = xmlDoc.CreateInstance(_uuidof(MSXML2::DOMDocument30));
+	if(!SUCCEEDED(HR))
+	{
+		MessageBox(_T("faild!!"));
+		return;
+	}
+
+	CComVariant FileName(strName);
+	xmlDoc->load(FileName);
+	nodeRoot = xmlDoc->GetdocumentElement();
+	nodeRoot->get_childNodes(&nodes);
+	long num;
+	nodes->get_length(&num);
+	CString strTmp;
+	strTmp.Format("%d", num);
+
+	CComVariant varVal;
+	CComBSTR strVal;
+	CString strTrans;
+	int port;
+	CString ip;
+	TLocation loc;
+	TSpeed speed;
+	m_components.clear();
+	int base = m_components.size();
+	for(int i = 0; i < num;i++)
+	{
+		nodes->get_item(i, &node);
+
+		// get Type field.
+		subnode = node->selectSingleNode(OLESTR("./@type"));
+		subnode->get_nodeValue(&varVal);
+		strTrans = COLE2CT(varVal.bstrVal);
+		int type = _ttoi(strTrans);
+
+		// get No. field
+		subnode = node->selectSingleNode(OLESTR("./@no"));
+		subnode->get_nodeValue(&varVal);
+		strTrans = COLE2CT(varVal.bstrVal);
+		int no = _ttoi(strTrans);
+
+		// get Location field
+		subnode = node->selectSingleNode(OLESTR("./location/x"));
+		subnode->get_text(&strVal);
+		strTrans = COLE2CT(strVal);
+		loc.x = _ttof(strTrans);
+
+		subnode = node->selectSingleNode(OLESTR("./location/y"));
+		subnode->get_text(&strVal);
+		strTrans = COLE2CT(strVal);
+		loc.y = _ttof(strTrans);
+
+		subnode = node->selectSingleNode(OLESTR("./location/z"));
+		subnode->get_text(&strVal);
+		strTrans = COLE2CT(strVal);
+		loc.z = _ttof(strTrans);
+
+		// get other filed
+		switch(type)
+		{
+		case TYPE_MOUNTAIN:
+			m_components.push_back(TComponent(no + base, type, loc, 0, _T("--"), 0));
+			break;
+
+		case TYPE_RADAR:
+			// get Port field
+			subnode = node->selectSingleNode(OLESTR("./port"));
+			subnode->get_text(&strVal);
+			strTrans = COLE2CT(strVal);
+			port = _ttoi(strTrans);
+
+			// get ip address filed
+			subnode = node->selectSingleNode(OLESTR("./ip_address"));
+			subnode->get_text(&strVal);
+			strTrans = COLE2CT(strVal);
+			ip = strTrans;
+
+			m_components.push_back(TComponent(no + base, type, loc, 0, ip, port));
+			break;
+
+		case TYPE_TARGET:
+			// get Speed field
+			subnode = node->selectSingleNode(OLESTR("./speed/vx"));
+			subnode->get_text(&strVal);
+			strTrans = COLE2CT(strVal);
+			speed.vx = _ttof(strTrans);
+
+			subnode = node->selectSingleNode(OLESTR("./speed/vy"));
+			subnode->get_text(&strVal);
+			strTrans = COLE2CT(strVal);
+			speed.vy = _ttof(strTrans);
+
+			subnode = node->selectSingleNode(OLESTR("./speed/vz"));
+			subnode->get_text(&strVal);
+			strTrans = COLE2CT(strVal);
+			speed.vz = _ttof(strTrans);
+
+			m_components.push_back(TComponent(no + base, type, loc, 0, _T("--"), 0, speed));
+			break;
+
+		default:;
+		}
+	}
+	nodes.Release();
+	node.Release();
+	subnode.Release();
+	nodeRoot.Release();
+	xmlDoc.Release();
+	::CoUninitialize();
 }

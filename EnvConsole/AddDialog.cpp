@@ -161,7 +161,7 @@ void CAddDialog::OnBnClickedOk()
 HBRUSH CAddDialog::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 {
 	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
-	pDC->SelectObject(m_font);
+	pDC->SelectObject(&m_font);
 	// TODO:  Change any attributes of the DC here
 
 	// TODO:  Return a different brush if the default is not desired

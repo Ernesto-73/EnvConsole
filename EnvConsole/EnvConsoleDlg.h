@@ -55,7 +55,7 @@ typedef struct TComponent{
 		// default constructor.
 	}
 
-	TComponent(int _no, int _type, TLocation &_loc, int _state, CString &_ip, int _host)
+	TComponent(int _no, int _type, TLocation _loc, int _state, CString _ip, int _host)
 	{
 		no = _no;
 		type = _type;
@@ -67,7 +67,7 @@ typedef struct TComponent{
 		host = _host;
 	}
 
-	TComponent(int _no, int _type, TLocation &_loc, int _state, CString &_ip, int _host, TSpeed &t)
+	TComponent(int _no, int _type, TLocation _loc, int _state, CString _ip, int _host, TSpeed t)
 	{
 		no = _no;
 		type = _type;
@@ -191,4 +191,7 @@ public:
 	afx_msg void OnTargetlocation();
 	afx_msg void OnRadarLocation();
 	afx_msg void OnStaticLocation();
+	afx_msg void OnBnClickedExport();
+private:
+	void ImportFromFile(CString strName);
 };
