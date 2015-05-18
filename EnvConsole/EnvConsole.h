@@ -9,6 +9,7 @@
 #endif
 
 #include "resource.h"		// main symbols
+#include "Splash.h"
 
 
 // CEnvConsoleApp:
@@ -27,6 +28,7 @@ public:
 // Implementation
 
 	DECLARE_MESSAGE_MAP()
+	CSplash m_splash;
 };
 
 extern CEnvConsoleApp theApp;

@@ -25,6 +25,9 @@
     <None Include="res\map.ico">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="res\splash.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EnvConsole.h">
@@ -45,6 +48,9 @@
     <ClInclude Include="AddDialog.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Splash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="EnvConsole.cpp">
@@ -58,6 +64,9 @@
     </ClCompile>
     <ClCompile Include="AddDialog.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Splash.cpp">
+      <Filter>Resource Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
