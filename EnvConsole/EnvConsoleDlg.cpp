@@ -788,6 +788,7 @@ void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 			buf += tmp;
 			buf += ";";
 		}
+		buf += "\0";
 		char *sendBuf = buf.GetBuffer();
 
 		if(!m_bIsConnected[k])
