@@ -144,7 +144,7 @@ private:
 	int m_arrOptions[NUM];
 public:
 	void Draw(CDC * pDC);
-	CStatic m_seperator;
+	CStatic m_separator;
 	afx_msg void OnNMCustomdrawList(NMHDR *pNMHDR, LRESULT *pResult);
 	
 	afx_msg void OnBnClickedStart();

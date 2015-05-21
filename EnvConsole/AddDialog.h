@@ -1,7 +1,7 @@
 #pragma once
 #include "afxwin.h"
 
-enum{TYPE_MOUNTAIN = 0, TYPE_RADAR, TYPE_TARGET};
+enum{TYPE_STATIC = 0, TYPE_RADAR, TYPE_TARGET};
 
 // CAddDialog dialog
 

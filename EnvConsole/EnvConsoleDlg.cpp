@@ -64,16 +64,20 @@ CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAP);
 	m_font.CreatePointFont(80, "Verdana", NULL);
 
-	m_strType[0] = "Mountain";
+	// Initialize constant strings.
+	m_strType[0] = "Static";
 	m_strType[1] = "Radar";
 	m_strType[2] = "Target";
 
 	m_strState[0] = "Disconnected";
 	m_strState[1] = "Connected";
 
+	// Initialize window size.
 	this->m_large = CRect(0, 0, 980, 600);
 	this->m_small = CRect(0, 0, 535, 600);
 	this->m_canvas = CRect(10, 10, 510, 510);
+
+	// Initialize options array.
 	memset(m_arrOptions, 0, sizeof(int) * NUM);
 	m_arrOptions[TARGET_LOCATION] = 1;
 }
@@ -82,7 +86,7 @@ void CEnvConsoleDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_LIST, m_list);
-	DDX_Control(pDX, IDC_SEPERATOR, m_seperator);
+	DDX_Control(pDX, IDC_SEPARATOR, m_separator);
 	DDX_Control(pDX, IDC_DETAILS, m_btnDetails);
 	DDX_Control(pDX, ID_START, m_btnStart);
 	DDX_Control(pDX, IDC_CONN_ALL, m_btnConnectAll);
@@ -131,7 +135,7 @@ BEGIN_MESSAGE_MAP(CEnvConsoleDlg, CDialogEx)
 	ON_COMMAND(ID_TARGET_LOCATION, &CEnvConsoleDlg::OnTargetlocation)
 	ON_COMMAND(ID_RADAR_LOCATION, &CEnvConsoleDlg::OnRadarLocation)
 	ON_COMMAND(ID_STATIC_LOCATION, &CEnvConsoleDlg::OnStaticLocation)
-	ON_BN_CLICKED(IDC_Export, &CEnvConsoleDlg::OnBnClickedExport)
+	ON_BN_CLICKED(IDC_EXPORT, &CEnvConsoleDlg::OnBnClickedExport)
 END_MESSAGE_MAP()
 
 
@@ -167,11 +171,14 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
+
+	// Set controls font.
 	m_btnStart.SetFont(&m_font);
 	m_btnConnectAll.SetFont(&m_font);
 	m_btnDetails.SetFont(&m_font);
 	m_btnDisconnect.SetFont(&m_font);
 	m_btnStart.SetFont(&m_font);
+	m_list.SetFont(&m_font);
 
 	GetDlgItem(IDC_STATIC)->SetFont(&m_font);
 	GetDlgItem(IDC_ADD)->SetFont(&m_font);
@@ -182,30 +189,36 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	GetDlgItem(IDC_SCALE_TYPE_1)->SetFont(&m_font);
 	GetDlgItem(IDC_SCALE_TYPE_2)->SetFont(&m_font);
 
-	m_seperator.MoveWindow(520, 5, 2, 550);
-	CRect r(530, 10, 530 + 425, 310);
-	m_list.SetExtendedStyle(LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT );
+	// Separator position.
+	m_separator.MoveWindow(520, 5, 2, 550);
+	
+	// Initialize list control.
+	CRect r(530, 10, 955, 310);	// position.
+	m_list.SetExtendedStyle(LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT ); // list control style: report
 	
 	m_list.MoveWindow(&r);
+	
+	// Add columns to list control.
 	m_list.InsertColumn(0, "No.", 0, 50);
 	m_list.InsertColumn(1, "Type", 0, 70);
 	m_list.InsertColumn(2, "Location(Origin)", 0, 110);
 	m_list.InsertColumn(3, "State", 0, 80);
 	m_list.InsertColumn(4, "IP Address", 0, 90);
 	m_list.InsertColumn(5, "Port", 0, 50);
+	m_list.InsertColumn(6, "RCS", 0, 50);
 
-	m_list.SetFont(&m_font);
-/*
+	// Add some random components.
 	m_components.push_back(TComponent(m_components.size() + 1, TYPE_RADAR, TLocation(300.9, 200.97), 0, CString("127.0.0.1"), 6000));
-	double v = (200. + genRand(1, 30)) / 1000.;
+
+	double v = (1400. + genRand(1, 30)) / 1000.;
 	double vx = -0.6 * v;
 	double vy = 0.8 * v;
 	double vz = 0;
-
 	m_components.push_back(TComponent(m_components.size() + 1, TYPE_TARGET, TLocation(421.23, 87.03), 0, CString("--"), 0, TSpeed(vx, vy, vz)));
-	m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(331.86, 132.0), 0, CString("--"), 0));
-	m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(174.49, 338.99), 0, CString("--"), 0));
-	m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(450.32, 197.91), 0, CString("--"), 0));
+
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_STATIC, TLocation(331.86, 132.0), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_STATIC, TLocation(174.49, 338.99), 0, CString("--"), 0));
+	m_components.push_back(TComponent(m_components.size() + 1, TYPE_STATIC, TLocation(450.32, 197.91), 0, CString("--"), 0));
 
 	for(int i = 0;i < 5;i++)
 	{
@@ -213,7 +226,7 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 		double x = genRand(1, 316) * genRand(1, 316) / 99.;
 		Sleep(50);
 		double y = genRand(1, 316) * genRand(1, 316) / 99.;
-		m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(x, y), 0, CString("--"), 0));
+		m_components.push_back(TComponent(m_components.size() + 1, TYPE_STATIC, TLocation(x, y), 0, CString("--"), 0));
 	}
 
 	v = (100. + genRand(1, 30)) / 1000.;
@@ -237,27 +250,32 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	for(int i = 0;i < 5;i++)
 	{
 		Sleep(50);
-		double x = genRand(1, 3160) * genRand(1, 316) / 99.;
+		double x = genRand(1, 316) * genRand(1, 316) / 99.;
 		Sleep(50);
-		double y = genRand(1, 3160) * genRand(1, 316) / 99.;
-		m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(x, y), 0, CString("--"), 0));
+		double y = genRand(1, 316) * genRand(1, 316) / 99.;
+		m_components.push_back(TComponent(m_components.size() + 1, TYPE_STATIC, TLocation(x, y), 0, CString("--"), 0));
 	}
-	UpdateList();
-*/
-	this->MoveWindow(&m_small);
+	// Update context of list control.
+	UpdateList(); 
+
+	// Set initial window size && button IDC_DETAILS caption
+	m_btnDetails.SetWindowTextA(_T("Hide"));
+	MoveWindow(&m_large);
 	CenterWindow();
 
 	m_btnDisconnect.EnableWindow(FALSE);
 	m_btnStart.EnableWindow(FALSE);
 
+	// Initialize IDC_COMBO_TIME controls context.
 	for(int i = 1;i < 10;i++)
 	{
 		CString t;
-		t.Format("%d", i * 100);
+		t.Format("%d", i * 20);
 		m_comboTime.AddString(t);
 	}
 	m_comboTime.SelectString(0, "100");
 
+	// Initialize IDC_COMBO_CLUTTER controls context.
 	m_comboClutterType.AddString("Land");
 	m_comboClutterType.AddString("Ocean");
 	m_comboClutterType.AddString("Rain");
@@ -289,14 +307,15 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	
 	((CButton *)GetDlgItem(IDC_SHOW_STATIC_OBJS))->SetCheck(1);
 
+/*
 	ImportFromFile(_T("E:\\map_0.xml"));
 	UpdateList();
 	InvalidateRect(&m_canvas);
-
+*/
 	if(m_components.size() == 0)
-		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(FALSE);
+		((CButton *)GetDlgItem(IDC_EXPORT))->EnableWindow(FALSE);
 	else 
-		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(TRUE);
+		((CButton *)GetDlgItem(IDC_EXPORT))->EnableWindow(TRUE);
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -344,7 +363,7 @@ void CEnvConsoleDlg::OnPaint()
 		dc.SetBkColor(RGB(100,50,0));
 		CBitmap xBMP;
 		xDC.CreateCompatibleDC(&dc);
-		xBMP.CreateCompatibleBitmap(&dc,500,500);
+		xBMP.CreateCompatibleBitmap(&dc, 500, 500);
 		xDC.SelectObject(&xBMP);
 		Draw(&xDC);
 
@@ -360,7 +379,7 @@ void CEnvConsoleDlg::OnPaint()
 		yDC.FillSolidRect(r, GetSysColor(COLOR_3DFACE)); //Get the system color of dialog background
 
 		yDC.BitBlt(m_canvas.left, m_canvas.top, m_canvas.Width(), m_canvas.Height(), &xDC, 0, 0, SRCCOPY);
-		dc.BitBlt(0, 0,r.Width(), r.Height(), &yDC, 0, 0, SRCCOPY);
+		dc.BitBlt(0, 0, r.Width(), r.Height(), &yDC, 0, 0, SRCCOPY);
 
 		xBMP.DeleteObject();
 		xDC.DeleteDC();
@@ -459,13 +478,13 @@ void CEnvConsoleDlg::UpdateList(void)
 		case TYPE_TARGET:
 			m_iTargetIdx.push_back(idx);
 			break;
-		case TYPE_MOUNTAIN:
+		case TYPE_STATIC:
 			m_iStaticIdx.push_back(idx);
 			break;
 		}
 		idx++;
 
-		if(m_arrOptions[HIDE_STATIC_OBJ] == 1 && it->type == TYPE_MOUNTAIN)
+		if(m_arrOptions[HIDE_STATIC_OBJ] == 1 && it->type == TYPE_STATIC)
 			continue;
 
 		int pos = m_list.GetItemCount();
@@ -482,11 +501,8 @@ void CEnvConsoleDlg::UpdateList(void)
 		else 
 			str.Format("%d", it->host);
 		m_list.SetItemText(nRow, 5, str);
+		m_list.SetItemText(nRow, 6, _T("10.0"));
 	}
-	/*
-	m_list.SetBkColor(RGB(255,255,255));
-	m_list.SetTextBkColor(RGB(160,180,220));
-	*/
 }
 
 
@@ -513,7 +529,7 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 	CFont *oFont = pDC->SelectObject(&font);
 	font.Detach();
 
-	// Set font text backgroud color
+	// Set font text background color
 	pDC->SetBkColor(RGB(0, 0, 0));
 	pDC->TextOut(tx, ty, str);
 
@@ -897,9 +913,9 @@ void CEnvConsoleDlg::OnBnClickedAdd()
 		CString strIP;
 		switch(type)
 		{
-		case TYPE_MOUNTAIN:
+		case TYPE_STATIC:
 			m_iStaticIdx.push_back(m_components.size());
-			m_components.push_back(TComponent(m_components.size() + 1, TYPE_MOUNTAIN, TLocation(x, y), 0, CString("--"), 0));
+			m_components.push_back(TComponent(m_components.size() + 1, TYPE_STATIC, TLocation(x, y), 0, CString("--"), 0));
 			break;
 
 		case TYPE_RADAR:
@@ -925,9 +941,9 @@ void CEnvConsoleDlg::OnBnClickedAdd()
 	}
 
 	if(m_components.size() == 0)
-		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(FALSE);
+		((CButton *)GetDlgItem(IDC_EXPORT))->EnableWindow(FALSE);
 	else 
-		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(TRUE);
+		((CButton *)GetDlgItem(IDC_EXPORT))->EnableWindow(TRUE);
 }
 
 
@@ -1012,15 +1028,20 @@ void CEnvConsoleDlg::OnLvnItemchangedList(NMHDR *pNMHDR, LRESULT *pResult)
 	for(i= 0; i < m_list.GetItemCount(); i++)
 	{
 		if( m_list.GetItemState(i, LVIS_SELECTED) == LVIS_SELECTED )
-		{
-			GetDlgItem(IDC_DELETE)->EnableWindow(TRUE);
 			break;
-		}
 	}
+
 	if(i !=  m_list.GetItemCount())
+	{
 		m_iSelected = i;
-	else 
+		GetDlgItem(IDC_DELETE)->EnableWindow(TRUE);
+	}
+	else
+	{
 		m_iSelected = -1;
+		GetDlgItem(IDC_DELETE)->EnableWindow(FALSE);
+	}
+	
 	InvalidateRect(&m_canvas);
 }
 
@@ -1041,11 +1062,12 @@ void CEnvConsoleDlg::OnBnClickedDelete()
 	UpdateList();
 	InvalidateRect(&m_canvas);
 	GetDlgItem(IDC_DELETE)->EnableWindow(FALSE);
+
 	m_iSelected = -1;
 	if(m_components.size() == 0)
-		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(FALSE);
+		((CButton *)GetDlgItem(IDC_EXPORT))->EnableWindow(FALSE);
 	else 
-		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(TRUE);
+		((CButton *)GetDlgItem(IDC_EXPORT))->EnableWindow(TRUE);
 }
 
 void CEnvConsoleDlg::OnBnClickedShowStaticObjs()
@@ -1079,9 +1101,9 @@ void CEnvConsoleDlg::OnBnClickedImport()
 	UpdateList();
 	InvalidateRect(&m_canvas);
 	if(m_components.size() == 0)
-		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(FALSE);
+		((CButton *)GetDlgItem(IDC_EXPORT))->EnableWindow(FALSE);
 	else 
-		((CButton *)GetDlgItem(IDC_Export))->EnableWindow(TRUE);
+		((CButton *)GetDlgItem(IDC_EXPORT))->EnableWindow(TRUE);
 }
 
 
@@ -1345,7 +1367,7 @@ void CEnvConsoleDlg::ImportFromFile(CString strName)
 		// get other filed
 		switch(type)
 		{
-		case TYPE_MOUNTAIN:
+		case TYPE_STATIC:
 			m_components.push_back(TComponent(no + base, type, loc, 0, _T("--"), 0));
 			break;
 

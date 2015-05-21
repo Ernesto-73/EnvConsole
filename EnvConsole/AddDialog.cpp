@@ -83,9 +83,9 @@ BOOL CAddDialog::OnInitDialog()
 	// TODO:  Add extra initialization here
 	m_comboType.AddString("Target");
 	m_comboType.AddString("Radar");
-	m_comboType.AddString("Mountain");
+	m_comboType.AddString("Static");
 
-	m_comboType.SelectString(0, "Mountain");
+	m_comboType.SelectString(0, "Static");
 	GetDlgItem(IDC_VX)->EnableWindow(FALSE);
 	GetDlgItem(IDC_VY)->EnableWindow(FALSE);
 	GetDlgItem(IDC_VZ)->EnableWindow(FALSE);
@@ -136,7 +136,7 @@ void CAddDialog::OnCbnSelchangeType()
 		GetDlgItem(IDC_IPADDRESS)->EnableWindow(TRUE);
 		GetDlgItem(IDC_PORT)->EnableWindow(TRUE);
 		break;
-	case TYPE_MOUNTAIN:
+	case TYPE_STATIC:
 		GetDlgItem(IDC_VX)->EnableWindow(FALSE);
 		GetDlgItem(IDC_VY)->EnableWindow(FALSE);
 		GetDlgItem(IDC_VZ)->EnableWindow(FALSE);
