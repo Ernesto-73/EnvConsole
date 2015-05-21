@@ -81,9 +81,9 @@ BOOL CAddDialog::OnInitDialog()
 	GetDlgItem(IDCANCEL)->SetFont(&m_font);
 
 	// TODO:  Add extra initialization here
-	m_comboType.AddString("Target");
-	m_comboType.AddString("Radar");
 	m_comboType.AddString("Static");
+	m_comboType.AddString("Radar");
+	m_comboType.AddString("Target");
 
 	m_comboType.SelectString(0, "Static");
 	GetDlgItem(IDC_VX)->EnableWindow(FALSE);
