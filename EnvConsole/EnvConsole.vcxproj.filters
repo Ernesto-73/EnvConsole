@@ -28,6 +28,9 @@
     <None Include="res\splash.bmp">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="..\..\..\..\..\Workspace%40Javier\Visual Studio 2010\Projects\EnvConsole\EnvConsole\res\toolbar1.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EnvConsole.h">
@@ -51,6 +54,9 @@
     <ClInclude Include="Splash.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DBOptions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="EnvConsole.cpp">
@@ -67,6 +73,9 @@
     </ClCompile>
     <ClCompile Include="Splash.cpp">
       <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DBOptions.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

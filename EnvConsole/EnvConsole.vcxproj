@@ -41,9 +41,13 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>E:\OCI\include;$(IncludePath)</IncludePath>
+    <LibraryPath>E:\OCI\lib\MSVC\vc10;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>E:\OCI\include;$(IncludePath)</IncludePath>
+    <LibraryPath>E:\OCI\lib\MSVC\vc10;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -55,6 +59,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>oraocci11d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -94,6 +99,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="..\..\..\..\..\Workspace%40Javier\Visual Studio 2010\Projects\EnvConsole\EnvConsole\res\toolbar1.bmp" />
     <None Include="ReadMe.txt" />
     <None Include="res\EnvConsole.ico" />
     <None Include="res\EnvConsole.rc2" />
@@ -102,6 +108,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AddDialog.h" />
+    <ClInclude Include="DBOptions.h" />
     <ClInclude Include="EnvConsole.h" />
     <ClInclude Include="EnvConsoleDlg.h" />
     <ClInclude Include="Resource.h" />
@@ -111,6 +118,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AddDialog.cpp" />
+    <ClCompile Include="DBOptions.cpp" />
     <ClCompile Include="EnvConsole.cpp" />
     <ClCompile Include="EnvConsoleDlg.cpp" />
     <ClCompile Include="Splash.cpp" />

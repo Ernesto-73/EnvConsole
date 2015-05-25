@@ -7,7 +7,8 @@
 #include "EnvConsoleDlg.h"
 #include "afxdialogex.h"
 #include "AddDialog.h"
- 
+#include "DBOptions.h"
+
 #import "msxml3.dll"
  
 using namespace MSXML2;
@@ -60,6 +61,9 @@ CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 	, m_EnvDis(0)
 	, m_EleInterf(0)
 	, m_iSelected(-1)
+	, m_env(NULL)
+	, m_conn(NULL)
+	, m_mouseLoc(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAP);
 	m_font.CreatePointFont(80, "Verdana", NULL);
@@ -73,9 +77,9 @@ CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 	m_strState[1] = "Connected";
 
 	// Initialize window size.
-	this->m_large = CRect(0, 0, 980, 600);
-	this->m_small = CRect(0, 0, 535, 600);
-	this->m_canvas = CRect(10, 10, 510, 510);
+	this->m_large = CRect(0, 0, 980, 650);
+	this->m_small = CRect(0, 0, 525, 600);
+	this->m_canvas = CRect(10, 30, 510, 530);
 
 	// Initialize options array.
 	memset(m_arrOptions, 0, sizeof(int) * NUM);
@@ -136,6 +140,19 @@ BEGIN_MESSAGE_MAP(CEnvConsoleDlg, CDialogEx)
 	ON_COMMAND(ID_RADAR_LOCATION, &CEnvConsoleDlg::OnRadarLocation)
 	ON_COMMAND(ID_STATIC_LOCATION, &CEnvConsoleDlg::OnStaticLocation)
 	ON_BN_CLICKED(IDC_EXPORT, &CEnvConsoleDlg::OnBnClickedExport)
+	ON_COMMAND(ID_DATABASE_CONNECT, &CEnvConsoleDlg::OnDatabaseConnect)
+	ON_COMMAND(ID_DATABASE_DISCONNECT, &CEnvConsoleDlg::OnDatabaseDisconnect)
+	ON_UPDATE_COMMAND_UI(ID_DATABASE_DISCONNECT, &CEnvConsoleDlg::OnUpdateDatabaseDisconnect)
+	ON_UPDATE_COMMAND_UI(ID_DATABASE_CONNECT, &CEnvConsoleDlg::OnUpdateDatabaseConnect)
+	ON_WM_INITMENUPOPUP()
+	ON_WM_MOUSEHOVER()
+	ON_WM_MOUSEMOVE()
+	ON_COMMAND(ID_RULER, &CEnvConsoleDlg::OnRuler)
+	ON_UPDATE_COMMAND_UI(ID_RULER, &CEnvConsoleDlg::OnUpdateRuler)
+	ON_UPDATE_COMMAND_UI(ID_TARGET_LOCATION, &CEnvConsoleDlg::OnUpdateTargetLocation)
+	ON_UPDATE_COMMAND_UI(ID_RADAR_LOCATION, &CEnvConsoleDlg::OnUpdateRadarLocation)
+	ON_UPDATE_COMMAND_UI(ID_STATIC_LOCATION, &CEnvConsoleDlg::OnUpdateStaticLocation)
+	ON_COMMAND(ID_DATABASE_CONFIGURATION, &CEnvConsoleDlg::OnDatabaseConfiguration)
 END_MESSAGE_MAP()
 
 
@@ -171,6 +188,36 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
+	
+	m_MainMenu.LoadMenu(MAKEINTRESOURCE(IDR_MAINMENU)); // Add main menu.
+	this->SetMenu(&m_MainMenu);
+
+	if(!m_wndToolBar.CreateEx(this, TBSTYLE_FLAT, WS_CHILD | WS_VISIBLE | CBRS_TOP | CBRS_GRIPPER | CBRS_TOOLTIPS | CBRS_FLYBY | CBRS_SIZE_DYNAMIC)  ||
+		!m_wndToolBar.LoadToolBar(IDR_MAINTOOLBAR))
+	{
+		TRACE0("Failed to craete tool bar\n");
+		return -1;
+	}
+	m_wndToolBar.SetButtonStyle(0,TBBS_CHECKBOX);
+	m_wndToolBar.SetButtonStyle(1,TBBS_CHECKBOX);
+	m_wndToolBar.SetButtonStyle(3, TBBS_DISABLED);
+
+	m_StatusBar.CreateEx(this,SBT_TOOLTIPS,WS_CHILD | WS_VISIBLE | CBRS_BOTTOM,AFX_IDW_STATUS_BAR );
+	m_StatusBar.SetIndicators(indicators,sizeof(indicators)/sizeof(UINT));
+/*
+	CRect rect;
+	GetClientRect(&rect);
+
+	m_StatusBar.SetPaneInfo(0,ID_INDICATOR_CAPS,SBPS_NORMAL,rect.Width()/3);
+	m_StatusBar.SetPaneInfo(1,ID_INDICATOR_NUM,SBPS_STRETCH ,rect.Width()/3);
+*/
+	RepositionBars(AFX_IDW_CONTROLBAR_FIRST,AFX_IDW_CONTROLBAR_LAST,ID_INDICATOR_CAPS);
+//	m_StatusBar.GetStatusBarCtrl().SetBkColor(RGB(180,20,180));
+	m_StatusBar.SetPaneText(0, "Stop",0);
+	CTime t = CTime::GetCurrentTime();
+	CString time = t.Format("  %H:%M:%S");
+	m_StatusBar.SetPaneText(2,time,0);
+	SetTimer(EVENT_CLOCK, 1000, NULL);
 
 	// Set controls font.
 	m_btnStart.SetFont(&m_font);
@@ -376,7 +423,8 @@ void CEnvConsoleDlg::OnPaint()
 		yBMP.CreateCompatibleBitmap(&dc,r.Width(),r.Height());
 		yDC.SelectObject(&yBMP);
 
-		yDC.FillSolidRect(r, GetSysColor(COLOR_3DFACE)); //Get the system color of dialog background
+		COLORREF clr = GetSysColor(COLOR_3DFACE);
+		yDC.FillSolidRect(r, clr); //Get the system color of dialog background
 
 		yDC.BitBlt(m_canvas.left, m_canvas.top, m_canvas.Width(), m_canvas.Height(), &xDC, 0, 0, SRCCOPY);
 		dc.BitBlt(0, 0, r.Width(), r.Height(), &yDC, 0, 0, SRCCOPY);
@@ -685,6 +733,16 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 		pDC->Ellipse(rt);
 	}
 	
+	pen.DeleteObject();
+	pen.CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
+	pDC->SelectObject(&pen);
+	if(m_arrOptions[ARROW_ON])
+	{
+		pDC->MoveTo(m_mouseLoc.x, 0);
+		pDC->LineTo(m_mouseLoc.x, 500);
+		pDC->MoveTo(0, m_mouseLoc.y);
+		pDC->LineTo(500, m_mouseLoc.y);
+	}
 	pDC->SelectObject(oFont);
 	pDC->SelectObject(oPen);
 	pDC->SelectObject(oBrush);
@@ -743,14 +801,13 @@ void CEnvConsoleDlg::OnBnClickedStart()
 	// TODO: Add your control notification handler code here
 	if(!m_bIsStarted)
 	{
-
 		if(!m_bIsAllConnected)
 		{
 			if(IDNO == MessageBox("Some components are not connected, simulator may not run correctly. Are you sure to continue?", "Warning", MB_YESNO|MB_ICONWARNING))
 				return ;
 		}
 	
-		SetTimer(1, 100, NULL);
+		SetTimer(EVENT_SIM, 100, NULL);
 		m_bIsStarted = true;
 		m_btnStart.SetWindowTextA("Stop");
 		m_btnDisconnect.EnableWindow(FALSE);
@@ -769,6 +826,14 @@ void CEnvConsoleDlg::OnBnClickedStart()
 void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: Add your message handler code here and/or call default
+	if(nIDEvent == EVENT_CLOCK)
+	{
+		CTime t = CTime::GetCurrentTime();
+		CString time = t.Format("  %H:%M:%S");
+		m_StatusBar.SetPaneText(2, time);
+		return ;
+	}
+
 	for(int i = 0;i < (int)m_iTargetIdx.size();++i)
 		m_components[m_iTargetIdx[i]].Move();
 
@@ -821,12 +886,27 @@ void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 			}
 		}
 	*/
+
 		if(SOCKET_ERROR == send(m_socket[k], sendBuf, buf.GetLength() + 1, 0))
 		{
 			m_bIsConnected[k] = false;
 			CheckConnection();
 			UpdateList();
 			continue;
+		}
+		if(m_arrOptions[DATABASE_CONNECTED])
+		{
+			char sql[200];
+			sprintf_s(sql, "insert into ENVDATA values (systimestamp, '%s')", sendBuf);
+			Statement *stmt = m_conn->createStatement();
+			try{
+				stmt->executeUpdate(sql);
+			}catch(SQLException e)
+			{
+				MessageBox(e.what());
+				exit(0);
+			}
+			m_conn->commit();
 		}
 	}
 	
@@ -1086,7 +1166,6 @@ void CEnvConsoleDlg::OnBnClickedShowStaticObjs()
 void CEnvConsoleDlg::OnBnClickedImport()
 {
 	// TODO: Add your control notification handler code here
-
 	CString strFile = _T("");
 	CFileDialog  dlgFile(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Describe Files (*.xml)|*.xml|All Files (*.*)|*.*||"), NULL);
 
@@ -1121,6 +1200,8 @@ HBRUSH CEnvConsoleDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 void CEnvConsoleDlg::OnRButtonDown(UINT nFlags, CPoint point)
 {
 	// TODO: Add your message handler code here and/or call default
+	if(m_arrOptions[ARROW_ON])
+		return;
 	CPoint tl = m_canvas.TopLeft();
 	CPoint br = m_canvas.BottomRight();
 	if(point.x > tl.x && point.y > tl.y && point.x < br.x && point.y < br.y)
@@ -1416,4 +1497,297 @@ void CEnvConsoleDlg::ImportFromFile(CString strName)
 	nodeRoot.Release();
 	xmlDoc.Release();
 	::CoUninitialize();
+}
+
+
+void CEnvConsoleDlg::OnDatabaseConnect()
+{
+	// TODO: Add your command handler code here
+	try
+	{
+		m_env = Environment::createEnvironment(Environment::DEFAULT);
+	}catch(SQLException e)
+	{
+		MessageBox(e.what());
+	}
+
+	std::string name = "scott";
+	std::string pass = "zh2348";
+	std::string srvName = "10.106.3.128:1521/ORCL";
+
+	try
+	{
+		m_conn = m_env->createConnection(name, pass, srvName);
+		MessageBox(_T("Dadatabse connected!"));
+		m_arrOptions[DATABASE_CONNECTED] = 1;
+		m_StatusBar.SetPaneText(3, "  Connected  ");
+		m_wndToolBar.SetButtonStyle(2, TBBS_DISABLED);
+		m_wndToolBar.SetButtonStyle(3, TBBS_BUTTON);
+	}
+	catch(SQLException e)
+	{
+		MessageBox(_T("Failed to connect database!"));
+		return ;
+	}
+
+	Statement *stmt = m_conn->createStatement();
+	try
+	{
+		stmt->executeUpdate("create table CONF \
+							(ClutterType VARCHAR2(10), \
+							Coefficient float(126), \
+							Disturbance float(126), \
+							Interference float(126), \
+							ClutterRCS float(126) )"
+							);
+	}catch(SQLException e)
+	{
+		int r = stmt->executeUpdate("delete from CONF");
+		CString str;
+		str.Format("%s %d rows deleted.",e.what(), r);
+		MessageBox(str);
+	}
+
+	try
+	{
+		stmt->executeUpdate("create table EnvData \
+							( Time TIMESTAMP(6), \
+							Frame VARCHAR2(1000))"
+							);
+	}catch(SQLException e)
+	{
+		int r = stmt->executeUpdate("delete from EnvData");
+		MessageBox(e.what());
+	}
+
+	stmt->executeUpdate("insert into CONF values ('land', 0.67, 1.90, 6.43, 1.84)");
+}
+
+
+void CEnvConsoleDlg::OnDatabaseDisconnect()
+{
+	// TODO: Add your command handler code here
+	if(IDOK == MessageBox("Are you sure to disconnect from database?", "Disconnect", MB_OKCANCEL | MB_ICONQUESTION))
+	{
+		m_env->terminateConnection(m_conn);
+		Environment::terminateEnvironment(m_env);
+		m_env = NULL;
+		m_conn = NULL;
+		m_arrOptions[DATABASE_CONNECTED] = 0;
+		m_StatusBar.SetPaneText(3, "  Disconnected  ");
+		m_wndToolBar.SetButtonStyle(2, TBBS_BUTTON);
+		m_wndToolBar.SetButtonStyle(3, TBBS_DISABLED);
+	}
+}
+
+
+void CEnvConsoleDlg::OnUpdateDatabaseDisconnect(CCmdUI *pCmdUI)
+{
+	// TODO: Add your command update UI handler code here
+	if(m_arrOptions[DATABASE_CONNECTED])
+		pCmdUI->Enable(TRUE);
+	else
+		pCmdUI->Enable(FALSE);
+}
+
+
+void CEnvConsoleDlg::OnUpdateDatabaseConnect(CCmdUI *pCmdUI)
+{
+	// TODO: Add your command update UI handler code here
+	if(m_arrOptions[DATABASE_CONNECTED])
+		pCmdUI->Enable(FALSE);
+	else
+		pCmdUI->Enable(TRUE);
+}
+
+
+void CEnvConsoleDlg::OnInitMenuPopup(CMenu* pPopupMenu, UINT nIndex, BOOL bSysMenu)
+{
+	ENSURE_VALID(pPopupMenu);
+
+	// check the enabled state of various menu items
+	CCmdUI state;
+	state.m_pMenu = pPopupMenu;
+	ASSERT(state.m_pOther == NULL);
+	ASSERT(state.m_pParentMenu == NULL);
+
+	// determine if menu is popup in top-level menu and set m_pOther to
+	//  it if so (m_pParentMenu == NULL indicates that it is secondary popup)
+	HMENU hParentMenu;
+	if (AfxGetThreadState()->m_hTrackingMenu == pPopupMenu->m_hMenu)
+		state.m_pParentMenu = pPopupMenu;    // parent == child for tracking popup
+	else if ((hParentMenu = ::GetMenu(m_hWnd)) != NULL)
+	{
+		CWnd* pParent = GetTopLevelParent();
+		// child windows don't have menus -- need to go to the top!
+		if (pParent != NULL &&
+			(hParentMenu = pParent->GetMenu()->GetSafeHmenu()) != NULL)
+		{
+			int nIndexMax = ::GetMenuItemCount(hParentMenu);
+			for (int nItemIndex = 0; nItemIndex < nIndexMax; nItemIndex++)
+			{
+				if (::GetSubMenu(hParentMenu, nItemIndex) == pPopupMenu->m_hMenu)
+				{
+					// when popup is found, m_pParentMenu is containing menu
+					state.m_pParentMenu = CMenu::FromHandle(hParentMenu);
+					break;
+				}
+			}
+		}
+	}
+
+	state.m_nIndexMax = pPopupMenu->GetMenuItemCount();
+	for (state.m_nIndex = 0; state.m_nIndex < state.m_nIndexMax;
+		state.m_nIndex++)
+	{
+		state.m_nID = pPopupMenu->GetMenuItemID(state.m_nIndex);
+		if (state.m_nID == 0)
+			continue; // menu separator or invalid cmd - ignore it
+
+		ASSERT(state.m_pOther == NULL);
+		ASSERT(state.m_pMenu != NULL);
+		if (state.m_nID == (UINT)-1)
+		{
+			// possibly a popup menu, route to first item of that popup
+			state.m_pSubMenu = pPopupMenu->GetSubMenu(state.m_nIndex);
+			if (state.m_pSubMenu == NULL ||
+				(state.m_nID = state.m_pSubMenu->GetMenuItemID(0)) == 0 ||
+				state.m_nID == (UINT)-1)
+			{
+				continue;       // first item of popup can't be routed to
+			}
+			state.DoUpdate(this, FALSE);    // pop-ups are never auto disabled
+		}
+		else
+		{
+			// normal menu item
+			// Auto enable/disable if frame window has 'm_bAutoMenuEnable'
+			//    set and command is _not_ a system command.
+			state.m_pSubMenu = NULL;
+			state.DoUpdate(this, FALSE);
+		}
+
+		// adjust for menu deletions and additions
+		UINT nCount = pPopupMenu->GetMenuItemCount();
+		if (nCount < state.m_nIndexMax)
+		{
+			state.m_nIndex -= (state.m_nIndexMax - nCount);
+			while (state.m_nIndex < nCount &&
+				pPopupMenu->GetMenuItemID(state.m_nIndex) == state.m_nID)
+			{
+				state.m_nIndex++;
+			}
+		}
+		state.m_nIndexMax = nCount;
+	}
+}
+
+
+void CEnvConsoleDlg::OnMouseHover(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+		CDialogEx::OnMouseHover(nFlags, point);
+}
+
+
+void CEnvConsoleDlg::OnMouseMove(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+	if(!m_arrOptions[ARROW_ON])
+		return ;
+
+	CPoint tl = m_canvas.TopLeft();
+	CPoint br = m_canvas.BottomRight();
+	if(point.x > tl.x && point.y > tl.y && point.x < br.x && point.y < br.y)
+	{
+		if(!m_arrOptions[HIDE_CURSOR])
+		{
+			m_arrOptions[HIDE_CURSOR] = 1;
+			ShowCursor(FALSE);
+		}
+		m_mouseLoc = point;
+		InvalidateRect(&m_canvas);
+		CString str;
+		str.Format("  Location (x = %d, y = %d)  ", point.x, point.y);
+		m_StatusBar.SetPaneText(0, str);
+	}
+	else
+	{
+		if(m_arrOptions[HIDE_CURSOR])
+		{
+			m_arrOptions[HIDE_CURSOR] = 0;
+			ShowCursor(TRUE);
+		}
+	}
+
+	CDialogEx::OnMouseMove(nFlags, point);
+}
+
+
+void CEnvConsoleDlg::OnRuler()
+{
+	// TODO: Add your command handler code here
+	if(m_arrOptions[ARROW_ON])
+	{
+		m_arrOptions[ARROW_ON] = 0;
+		m_wndToolBar.SetButtonStyle(1, TBBS_BUTTON);
+	}
+	else
+	{
+		m_arrOptions[ARROW_ON] = 1;
+		m_wndToolBar.SetButtonStyle(1, TBBS_CHECKED);
+	}
+	InvalidateRect(&m_canvas);
+}
+
+
+void CEnvConsoleDlg::OnUpdateRuler(CCmdUI *pCmdUI)
+{
+	// TODO: Add your command update UI handler code here
+	if(m_arrOptions[ARROW_ON])
+	{	
+		pCmdUI->SetCheck(1);
+		
+	}
+	else{
+		pCmdUI->SetCheck(0);
+	}
+}
+
+
+void CEnvConsoleDlg::OnUpdateTargetLocation(CCmdUI *pCmdUI)
+{
+	// TODO: Add your command update UI handler code here
+	if(m_arrOptions[TARGET_LOCATION] == 1)
+		pCmdUI->SetCheck(1);
+	else
+		pCmdUI->SetCheck(0);
+}
+
+
+void CEnvConsoleDlg::OnUpdateRadarLocation(CCmdUI *pCmdUI)
+{
+	// TODO: Add your command update UI handler code here
+	if(m_arrOptions[RADAR_LOCATION] == 1)
+		pCmdUI->SetCheck(1);
+	else
+		pCmdUI->SetCheck(0);
+}
+
+
+void CEnvConsoleDlg::OnUpdateStaticLocation(CCmdUI *pCmdUI)
+{
+	// TODO: Add your command update UI handler code here
+	if(m_arrOptions[STATIC_LOCATION] == 1)
+		pCmdUI->SetCheck(1);
+	else
+		pCmdUI->SetCheck(0);
+}
+
+
+void CEnvConsoleDlg::OnDatabaseConfiguration()
+{
+	// TODO: Add your command handler code here
+	DBOptions DBdlg;
+	DBdlg.DoModal();
 }

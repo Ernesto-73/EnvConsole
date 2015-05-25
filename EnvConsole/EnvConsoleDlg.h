@@ -7,9 +7,22 @@
 #include <vector>
 #include "atltypes.h"
 #include "afxwin.h"
+#include "afxext.h"
+#include "occi.h"
+
+using namespace oracle::occi;;
 
 enum{STATE_DISCONNECTED = 0, STATE_CONNECTED};
-enum{HIDE_STATIC_OBJ = 0, TARGET_LOCATION, RADAR_LOCATION , STATIC_LOCATION, NUM};
+enum{HIDE_STATIC_OBJ = 0, TARGET_LOCATION, RADAR_LOCATION , STATIC_LOCATION, DATABASE_CONNECTED, ARROW_ON, HIDE_CURSOR, NUM};
+enum{EVENT_SIM = 1, EVENT_CLOCK};
+
+static UINT BASED_CODE indicators[]=   
+{
+	ID_SEPARATOR,
+	ID_INDICATOR_PROGRESS,
+	ID_INDICATOR_TIME,
+	ID_INDICATOR_VERSION
+};
 
 typedef struct TLocation{
 	TLocation()
@@ -194,4 +207,26 @@ public:
 	afx_msg void OnBnClickedExport();
 private:
 	void ImportFromFile(CString strName);
+	CMenu m_MainMenu;
+	CToolBar m_wndToolBar;
+	CStatusBar  m_StatusBar;
+public:
+	afx_msg void OnDatabaseConnect();
+private:
+	Environment* m_env;
+public:
+	Connection* m_conn;
+	afx_msg void OnDatabaseDisconnect();
+	afx_msg void OnUpdateDatabaseDisconnect(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateDatabaseConnect(CCmdUI *pCmdUI);
+	afx_msg void OnInitMenuPopup(CMenu* pPopupMenu, UINT nIndex, BOOL bSysMenu);
+	afx_msg void OnMouseHover(UINT nFlags, CPoint point);
+	CPoint m_mouseLoc;
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnRuler();
+	afx_msg void OnUpdateRuler(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateTargetLocation(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateRadarLocation(CCmdUI *pCmdUI);
+	afx_msg void OnUpdateStaticLocation(CCmdUI *pCmdUI);
+	afx_msg void OnDatabaseConfiguration();
 };
