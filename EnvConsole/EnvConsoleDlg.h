@@ -10,6 +10,8 @@
 #include "afxext.h"
 #include "occi.h"
 
+#define WM_PROGRESS WM_USER+1001
+
 using namespace oracle::occi;;
 
 enum{STATE_DISCONNECTED = 0, STATE_CONNECTED};
@@ -220,7 +222,7 @@ public:
 	afx_msg void OnUpdateDatabaseDisconnect(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateDatabaseConnect(CCmdUI *pCmdUI);
 	afx_msg void OnInitMenuPopup(CMenu* pPopupMenu, UINT nIndex, BOOL bSysMenu);
-	afx_msg void OnMouseHover(UINT nFlags, CPoint point);
+//	afx_msg void OnMouseHover(UINT nFlags, CPoint point);
 	CPoint m_mouseLoc;
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnRuler();
@@ -229,4 +231,8 @@ public:
 	afx_msg void OnUpdateRadarLocation(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateStaticLocation(CCmdUI *pCmdUI);
 	afx_msg void OnDatabaseConfiguration();
+private:
+	CProgressCtrl m_progress;
+protected:
+	afx_msg LRESULT OnProgress(WPARAM wParam, LPARAM lParam);
 };

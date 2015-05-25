@@ -78,7 +78,7 @@ CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 
 	// Initialize window size.
 	this->m_large = CRect(0, 0, 980, 650);
-	this->m_small = CRect(0, 0, 525, 600);
+	this->m_small = CRect(0, 0, 525, 615);
 	this->m_canvas = CRect(10, 30, 510, 530);
 
 	// Initialize options array.
@@ -153,6 +153,7 @@ BEGIN_MESSAGE_MAP(CEnvConsoleDlg, CDialogEx)
 	ON_UPDATE_COMMAND_UI(ID_RADAR_LOCATION, &CEnvConsoleDlg::OnUpdateRadarLocation)
 	ON_UPDATE_COMMAND_UI(ID_STATIC_LOCATION, &CEnvConsoleDlg::OnUpdateStaticLocation)
 	ON_COMMAND(ID_DATABASE_CONFIGURATION, &CEnvConsoleDlg::OnDatabaseConfiguration)
+	ON_MESSAGE(WM_PROGRESS, &CEnvConsoleDlg::OnProgress)
 END_MESSAGE_MAP()
 
 
@@ -188,7 +189,7 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-	
+
 	m_MainMenu.LoadMenu(MAKEINTRESOURCE(IDR_MAINMENU)); // Add main menu.
 	this->SetMenu(&m_MainMenu);
 
@@ -212,13 +213,18 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	m_StatusBar.SetPaneInfo(1,ID_INDICATOR_NUM,SBPS_STRETCH ,rect.Width()/3);
 */
 	RepositionBars(AFX_IDW_CONTROLBAR_FIRST,AFX_IDW_CONTROLBAR_LAST,ID_INDICATOR_CAPS);
-//	m_StatusBar.GetStatusBarCtrl().SetBkColor(RGB(180,20,180));
-	m_StatusBar.SetPaneText(0, "Stop",0);
+	m_StatusBar.SetPaneText(0, "",0);
 	CTime t = CTime::GetCurrentTime();
 	CString time = t.Format("  %H:%M:%S");
 	m_StatusBar.SetPaneText(2,time,0);
 	SetTimer(EVENT_CLOCK, 1000, NULL);
 
+	CRect rect;
+	this->m_StatusBar.GetItemRect(1, &rect);
+	m_progress.Create(WS_CHILD | WS_VISIBLE, rect, &m_StatusBar, 100);
+	m_progress.SetRange(0, 4000);
+	m_progress.SetStep(1);
+	
 	// Set controls font.
 	m_btnStart.SetFont(&m_font);
 	m_btnConnectAll.SetFont(&m_font);
@@ -903,13 +909,16 @@ void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 				stmt->executeUpdate(sql);
 			}catch(SQLException e)
 			{
+			//	stmt->executeUpdate();
 				MessageBox(e.what());
 				exit(0);
 			}
 			m_conn->commit();
+			m_conn->terminateStatement(stmt);
+	
 		}
 	}
-	
+	SendMessage(WM_PROGRESS);
 	m_time++; 
 	InvalidateRect(&m_canvas);
 	CDialogEx::OnTimer(nIDEvent);
@@ -1505,7 +1514,7 @@ void CEnvConsoleDlg::OnDatabaseConnect()
 	// TODO: Add your command handler code here
 	try
 	{
-		m_env = Environment::createEnvironment(Environment::DEFAULT);
+		m_env = Environment::createEnvironment(Environment::THREADED_MUTEXED);
 	}catch(SQLException e)
 	{
 		MessageBox(e.what());
@@ -1552,15 +1561,18 @@ void CEnvConsoleDlg::OnDatabaseConnect()
 	{
 		stmt->executeUpdate("create table EnvData \
 							( Time TIMESTAMP(6), \
-							Frame VARCHAR2(1000))"
+							Frame VARCHAR2(1000))\
+							STORAGE  ( INITIAL 100M NEXT 50M \
+										MINEXTENTS 1 MAXEXTENTS 50 PCTINCREASE 5)"
 							);
 	}catch(SQLException e)
 	{
-		int r = stmt->executeUpdate("delete from EnvData");
 		MessageBox(e.what());
+		int r = stmt->executeUpdate("delete from EnvData");
 	}
 
 	stmt->executeUpdate("insert into CONF values ('land', 0.67, 1.90, 6.43, 1.84)");
+	m_conn->terminateStatement(stmt);
 }
 
 
@@ -1683,11 +1695,11 @@ void CEnvConsoleDlg::OnInitMenuPopup(CMenu* pPopupMenu, UINT nIndex, BOOL bSysMe
 }
 
 
-void CEnvConsoleDlg::OnMouseHover(UINT nFlags, CPoint point)
-{
-	// TODO: Add your message handler code here and/or call default
-		CDialogEx::OnMouseHover(nFlags, point);
-}
+//void CEnvConsoleDlg::OnMouseHover(UINT nFlags, CPoint point)
+//{
+//	// TODO: Add your message handler code here and/or call default
+//		CDialogEx::OnMouseHover(nFlags, point);
+//}
 
 
 void CEnvConsoleDlg::OnMouseMove(UINT nFlags, CPoint point)
@@ -1790,4 +1802,11 @@ void CEnvConsoleDlg::OnDatabaseConfiguration()
 	// TODO: Add your command handler code here
 	DBOptions DBdlg;
 	DBdlg.DoModal();
+}
+
+
+afx_msg LRESULT CEnvConsoleDlg::OnProgress(WPARAM wParam, LPARAM lParam)
+{
+	m_progress.StepIt();
+	return 0;
 }

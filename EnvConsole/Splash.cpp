@@ -26,6 +26,7 @@ void CSplash::Create(UINT nBitmapID)
 	//CreateEx(0,AfxRegisterWndClass(0),"",WS_POPUP|WS_VISIBLE|WS_BORDER,0,0,bitmap.bmWidth,bitmap.bmHeight,NULL,0);  
     CreateEx(0, AfxRegisterWndClass(0, AfxGetApp()->LoadStandardCursor(IDC_ARROW)),  
             NULL, WS_POPUP | WS_VISIBLE, 0, 0, bitmap.bmWidth, bitmap.bmHeight, NULL , NULL); 
+	SetTimer(1, 3000, NULL);
 }  
 
 BEGIN_MESSAGE_MAP(CSplash, CWnd)

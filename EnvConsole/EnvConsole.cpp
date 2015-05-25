@@ -77,8 +77,10 @@ BOOL CEnvConsoleApp::InitInstance()
 	m_splash.CenterWindow();
 	m_splash.UpdateWindow();
 	m_splash.SetWindowPos(&CWnd::wndTopMost, 0, 0, 0, 0,SWP_NOMOVE | SWP_NOSIZE);
+/*
 	Sleep(3000);
 	m_splash.DestroyWindow();
+*/
 
 	CEnvConsoleDlg dlg;
 	m_pMainWnd = &dlg;

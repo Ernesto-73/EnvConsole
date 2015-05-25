@@ -31,6 +31,9 @@
     <None Include="..\..\..\..\..\Workspace%40Javier\Visual Studio 2010\Projects\EnvConsole\EnvConsole\res\toolbar1.bmp">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="res\toolbar1.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EnvConsole.h">
