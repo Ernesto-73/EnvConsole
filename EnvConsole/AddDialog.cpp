@@ -108,8 +108,9 @@ BOOL CAddDialog::OnInitDialog()
 	m_strIP = inet_ntoa(*(struct in_addr *)host->h_addr_list[0]);
 */
 	// For Debug: set m_strIP to be 127.0.0.1
-	m_ip = ntohl(inet_addr(m_strIP));
-	m_port = 6000;
+//	m_ip = ntohl(inet_addr(m_strIP));
+	m_ip = 0;
+	m_port = 0;
 	UpdateData(FALSE);
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// EXCEPTION: OCX Property Pages should return FALSE

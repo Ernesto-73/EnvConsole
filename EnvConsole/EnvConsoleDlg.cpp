@@ -78,7 +78,7 @@ CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 
 	// Initialize window size.
 	this->m_large = CRect(0, 0, 980, 650);
-	this->m_small = CRect(0, 0, 525, 615);
+	this->m_small = CRect(0, 0, 525, 650);
 	this->m_canvas = CRect(10, 30, 510, 530);
 
 	// Initialize options array.
@@ -154,6 +154,14 @@ BEGIN_MESSAGE_MAP(CEnvConsoleDlg, CDialogEx)
 	ON_UPDATE_COMMAND_UI(ID_STATIC_LOCATION, &CEnvConsoleDlg::OnUpdateStaticLocation)
 	ON_COMMAND(ID_DATABASE_CONFIGURATION, &CEnvConsoleDlg::OnDatabaseConfiguration)
 	ON_MESSAGE(WM_PROGRESS, &CEnvConsoleDlg::OnProgress)
+	ON_COMMAND(ID_FILE_IMPORT, &CEnvConsoleDlg::OnFileImport)
+	ON_COMMAND(ID_FILE_EXPORT, &CEnvConsoleDlg::OnFileExport)
+	ON_UPDATE_COMMAND_UI(ID_FILE_EXPORT, &CEnvConsoleDlg::OnUpdateFileExport)
+	ON_COMMAND(ID_FILE_CLEARALL, &CEnvConsoleDlg::OnFileClearall)
+	ON_COMMAND(ID_DATABASE_UPLOAD, &CEnvConsoleDlg::OnDatabaseUpload)
+	ON_UPDATE_COMMAND_UI(ID_DATABASE_UPLOAD, &CEnvConsoleDlg::OnUpdateDatabaseUpload)
+	ON_COMMAND(ID_DATABASE_DOWNLOAD, &CEnvConsoleDlg::OnDatabaseDownload)
+	ON_UPDATE_COMMAND_UI(ID_DATABASE_DOWNLOAD, &CEnvConsoleDlg::OnUpdateDatabaseDownload)
 END_MESSAGE_MAP()
 
 
@@ -190,9 +198,9 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 
 	// TODO: Add extra initialization here
 
-	m_MainMenu.LoadMenu(MAKEINTRESOURCE(IDR_MAINMENU)); // Add main menu.
-	this->SetMenu(&m_MainMenu);
-
+	m_MainMenu.LoadMenu(IDR_MAINMENU); // Add main menu.
+	SetMenu(&m_MainMenu);
+	
 	if(!m_wndToolBar.CreateEx(this, TBSTYLE_FLAT, WS_CHILD | WS_VISIBLE | CBRS_TOP | CBRS_GRIPPER | CBRS_TOOLTIPS | CBRS_FLYBY | CBRS_SIZE_DYNAMIC)  ||
 		!m_wndToolBar.LoadToolBar(IDR_MAINTOOLBAR))
 	{
@@ -218,9 +226,9 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 	CString time = t.Format("  %H:%M:%S");
 	m_StatusBar.SetPaneText(2,time,0);
 	SetTimer(EVENT_CLOCK, 1000, NULL);
-
+	m_StatusBar.GetStatusBarCtrl().SetIcon(3, AfxGetApp()->LoadIconA(IDI_DISCONNECT));
 	CRect rect;
-	this->m_StatusBar.GetItemRect(1, &rect);
+	m_StatusBar.GetItemRect(1, &rect);
 	m_progress.Create(WS_CHILD | WS_VISIBLE, rect, &m_StatusBar, 100);
 	m_progress.SetRange(0, 4000);
 	m_progress.SetStep(1);
@@ -549,7 +557,12 @@ void CEnvConsoleDlg::UpdateList(void)
 		str.Format("(%.2f, %.2f)",it->loc.x,it->loc.y);
 		m_list.SetItemText(nRow, 2, str);
 		m_list.SetItemText(nRow, 3,  m_strState[it->state]);
-		m_list.SetItemText(nRow, 4, it->ip);
+
+		if(it->ip == _T("0.0.0.0"))
+			m_list.SetItemText(nRow, 4, _T("Auto Deploy"));
+		else
+			m_list.SetItemText(nRow, 4, it->ip);
+
 		if(it->host == 0)
 			str  = "--";
 		else 
@@ -568,18 +581,18 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 	pDC->FillSolidRect(&r,RGB(0, 0, 0));
 
 	// Set the text position
-	int tx = 345;
+	int tx = 340;
 	int ty = 480;
 
 	// Set font size && color
 	TEXTMETRIC tm;
 	pDC->GetTextMetrics(&tm);
-	pDC->SetTextColor(RGB(200, 200, 200));
+	pDC->SetTextColor(RGB(255, 255, 255));
 	CString str;
 	str.Format("Simulation Time: %d s", m_time);
 
 	CFont font;
-	font.CreatePointFont(90, "Verdana", NULL);
+	font.CreatePointFont(90, "Monaco", NULL);
 	CFont *oFont = pDC->SelectObject(&font);
 	font.Detach();
 
@@ -604,20 +617,6 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 
 	pDC->MoveTo(499, 0);
 	pDC->LineTo(499, 499);
-
-	// Draw grids
-	pen.DeleteObject();
-	pen.CreatePen(PS_DOT, 1, RGB(0, 255, 0));
-	pDC->SelectObject(&pen);
-
-	for(int i = 1;i < 10;i++)
-	{
-		pDC->MoveTo(0, i * 50 - 1);
-		pDC->LineTo(499, i * 50 - 1);
-
-		pDC->MoveTo(i * 50 - 1, 0);
-		pDC->LineTo(i * 50 - 1, 499);
-	}
 
 	// Draw static objects
 	pen.DeleteObject();
@@ -739,8 +738,9 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 		pDC->Ellipse(rt);
 	}
 	
+	// Arrow
 	pen.DeleteObject();
-	pen.CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
+	pen.CreatePen(PS_SOLID, 1, RGB(240, 100, 0));
 	pDC->SelectObject(&pen);
 	if(m_arrOptions[ARROW_ON])
 	{
@@ -749,6 +749,29 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 		pDC->MoveTo(0, m_mouseLoc.y);
 		pDC->LineTo(500, m_mouseLoc.y);
 	}
+
+	// Draw grids
+	pen.DeleteObject();
+	pen.CreatePen(PS_DOT, 1, RGB(0, 255, 0));
+	pDC->SelectObject(&pen);
+
+	font.CreateFont(14, 7, -100, 0, 10, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_ROMAN, "Verdana");	
+	pDC->SelectObject(&font);
+	str = "0";
+	pDC->TextOut(5, 5, str);
+	for(int i = 1;i < 10;i++)
+	{
+		str.Format("%.0f", i * m_iMapScale * 50. / 10);
+		pDC->TextOut(5, i * 50 - 1, str);
+		pDC->TextOut(i * 50+5, 5, str);
+
+		pDC->MoveTo(0, i * 50 - 1);
+		pDC->LineTo(499, i * 50 - 1);
+
+		pDC->MoveTo(i * 50 - 1, 0);
+		pDC->LineTo(i * 50 - 1, 499);
+	}
+
 	pDC->SelectObject(oFont);
 	pDC->SelectObject(oPen);
 	pDC->SelectObject(oBrush);
@@ -915,7 +938,6 @@ void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 			}
 			m_conn->commit();
 			m_conn->terminateStatement(stmt);
-	
 		}
 	}
 	SendMessage(WM_PROGRESS);
@@ -1176,10 +1198,14 @@ void CEnvConsoleDlg::OnBnClickedImport()
 {
 	// TODO: Add your control notification handler code here
 	CString strFile = _T("");
-	CFileDialog  dlgFile(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Describe Files (*.xml)|*.xml|All Files (*.*)|*.*||"), NULL);
+	CFileDialog  dlgFile(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("XML Files (*.xml)|*.xml"), theApp.GetMainWnd()->GetWindow(GW_HWNDPREV), NULL);
 
 	if(IDCANCEL == dlgFile.DoModal())
+	{
+		SetFocus();
 		return ;
+	}
+	SetFocus();
 	strFile = dlgFile.GetPathName();
 
 	if(IDNO == MessageBox("Are you sure to import file '" + strFile +"'?", "Import File", MB_YESNO|MB_ICONINFORMATION))
@@ -1188,6 +1214,7 @@ void CEnvConsoleDlg::OnBnClickedImport()
 	ImportFromFile(strFile);
 	UpdateList();
 	InvalidateRect(&m_canvas);
+
 	if(m_components.size() == 0)
 		((CButton *)GetDlgItem(IDC_EXPORT))->EnableWindow(FALSE);
 	else 
@@ -1199,9 +1226,6 @@ HBRUSH CEnvConsoleDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 {
 	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
 	pDC->SelectObject(&m_font);
-	// TODO:  Change any attributes of the DC here
-
-	// TODO:  Return a different brush if the default is not desired
 	return hbr;
 }
 
@@ -1272,121 +1296,125 @@ void CEnvConsoleDlg::OnStaticLocation()
 void CEnvConsoleDlg::OnBnClickedExport()
 {
 	// TODO: Add your control notification handler code here
-
 	CString strFile = _T("");
-	CFileDialog  dlgFile(FALSE);
+//	CFileDialog  dlgFile(FALSE);
+	
+	CFileDialog dlgFile(FALSE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, NULL, theApp.GetMainWnd()->GetWindow(GW_HWNDPREV), NULL);
 	dlgFile.m_ofn.lpstrTitle = _T("Export");
 	dlgFile.m_ofn.lpstrFilter = _T("XML Files (*.xml)");
 	dlgFile.m_ofn.lpstrDefExt = _T("xml");
-	if(IDCANCEL == dlgFile.DoModal())
-		return ;
-	strFile = dlgFile.GetPathName();
 
-	::CoInitialize(NULL);
-	MSXML2::IXMLDOMDocumentPtr XMLDOC;
-	MSXML2::IXMLDOMElementPtr XMLROOT;
-
-	HRESULT HR = XMLDOC.CreateInstance(_uuidof(MSXML2::DOMDocument30));
-	if(!SUCCEEDED(HR))
+	if(IDOK == dlgFile.DoModal())
 	{
-		MessageBox(_T("Faild!"));
-		return ;
-	}
-	XMLROOT = XMLDOC->createElement("Env_components");
-	XMLDOC->appendChild(XMLROOT);
-	CString strTmp;
-	MSXML2::IXMLDOMElementPtr XMLNODE, nodeIP, nodePort, nodeLoc, nodeType, nodeX, nodeY, nodeZ, nodeSpeed, nodeVx, nodeVy, nodeVz;
-	for(int i = 0;i < (int)m_components.size();i++)
-	{
+		strFile = dlgFile.GetPathName();
 
-		XMLNODE = XMLDOC->createElement((_bstr_t)("components"));
+		::CoInitialize(NULL);
+		MSXML2::IXMLDOMDocumentPtr XMLDOC;
+		MSXML2::IXMLDOMElementPtr XMLROOT;
 
-		// No.
-		strTmp.Format("%d", m_components[i].no);
-		XMLNODE->setAttribute("no", (_variant_t)strTmp);
-
-		// type 
-		strTmp.Format("%d", m_components[i].type);
-		XMLNODE->setAttribute("type", (_variant_t)strTmp);
-
-		// type
-		nodeType = XMLDOC->createElement((_bstr_t)("type"));
-		nodeType->put_text((_bstr_t)m_strType[m_components[i].type]);
-
-		// location
-		nodeLoc = XMLDOC->createElement((_bstr_t)("location"));
-
-		nodeX = XMLDOC->createElement((_bstr_t)("x"));
-		strTmp.Format("%f", m_components[i].loc.x);
-		nodeX->put_text((_bstr_t)strTmp);
-		nodeLoc->appendChild(nodeX);
-
-		nodeY = XMLDOC->createElement((_bstr_t)("y"));
-		strTmp.Format("%f", m_components[i].loc.y);
-		nodeY->put_text((_bstr_t)strTmp);
-		nodeLoc->appendChild(nodeY);
-
-		nodeZ = XMLDOC->createElement((_bstr_t)("z"));
-		strTmp.Format("%f", m_components[i].loc.z);
-		nodeZ->put_text((_bstr_t)strTmp);
-		nodeLoc->appendChild(nodeZ);
-
-		// ip address and port info.
-		if(m_components[i].type == TYPE_RADAR)
+		HRESULT HR = XMLDOC.CreateInstance(_uuidof(MSXML2::DOMDocument30));
+		if(!SUCCEEDED(HR))
 		{
-			nodeIP = XMLDOC->createElement((_bstr_t)("ip_address"));
-			nodePort = XMLDOC->createElement((_bstr_t)("port"));
-			nodeIP->put_text((_bstr_t)m_components[i].ip);
-			strTmp.Format("%d", m_components[i].host);
-			nodePort->put_text((_bstr_t)strTmp);
-
-			XMLNODE->appendChild(nodeIP);
-			XMLNODE->appendChild(nodePort);
+			MessageBox(_T("Faild!"));
+			return ;
 		}
-
-		if(m_components[i].type == TYPE_TARGET)
+		XMLROOT = XMLDOC->createElement("Env_components");
+		XMLDOC->appendChild(XMLROOT);
+		CString strTmp;
+		MSXML2::IXMLDOMElementPtr XMLNODE, nodeIP, nodePort, nodeLoc, nodeType, nodeX, nodeY, nodeZ, nodeSpeed, nodeVx, nodeVy, nodeVz;
+		for(int i = 0;i < (int)m_components.size();i++)
 		{
-			nodeSpeed = XMLDOC->createElement((_bstr_t)("speed"));
 
-			nodeVx = XMLDOC->createElement((_bstr_t)("vx"));
-			strTmp.Format("%f", m_components[i].speed.vx);
-			nodeVx->put_text((_bstr_t)strTmp);
-			nodeSpeed->appendChild(nodeVx);
+			XMLNODE = XMLDOC->createElement((_bstr_t)("components"));
 
-			nodeVy = XMLDOC->createElement((_bstr_t)("vy"));
-			strTmp.Format("%f", m_components[i].speed.vy);
-			nodeVy->put_text((_bstr_t)strTmp);
-			nodeSpeed->appendChild(nodeVy);
+			// No.
+			strTmp.Format("%d", m_components[i].no);
+			XMLNODE->setAttribute("no", (_variant_t)strTmp);
 
-			nodeVz = XMLDOC->createElement((_bstr_t)("vz"));
-			strTmp.Format("%f", m_components[i].speed.vz);
-			nodeVz->put_text((_bstr_t)strTmp);
-			nodeSpeed->appendChild(nodeVz);
+			// type 
+			strTmp.Format("%d", m_components[i].type);
+			XMLNODE->setAttribute("type", (_variant_t)strTmp);
 
-			XMLNODE->appendChild(nodeSpeed);
+			// type
+			nodeType = XMLDOC->createElement((_bstr_t)("type"));
+			nodeType->put_text((_bstr_t)m_strType[m_components[i].type]);
+
+			// location
+			nodeLoc = XMLDOC->createElement((_bstr_t)("location"));
+
+			nodeX = XMLDOC->createElement((_bstr_t)("x"));
+			strTmp.Format("%f", m_components[i].loc.x);
+			nodeX->put_text((_bstr_t)strTmp);
+			nodeLoc->appendChild(nodeX);
+
+			nodeY = XMLDOC->createElement((_bstr_t)("y"));
+			strTmp.Format("%f", m_components[i].loc.y);
+			nodeY->put_text((_bstr_t)strTmp);
+			nodeLoc->appendChild(nodeY);
+
+			nodeZ = XMLDOC->createElement((_bstr_t)("z"));
+			strTmp.Format("%f", m_components[i].loc.z);
+			nodeZ->put_text((_bstr_t)strTmp);
+			nodeLoc->appendChild(nodeZ);
+
+			// ip address and port info.
+			if(m_components[i].type == TYPE_RADAR)
+			{
+				nodeIP = XMLDOC->createElement((_bstr_t)("ip_address"));
+				nodePort = XMLDOC->createElement((_bstr_t)("port"));
+				nodeIP->put_text((_bstr_t)m_components[i].ip);
+				strTmp.Format("%d", m_components[i].host);
+				nodePort->put_text((_bstr_t)strTmp);
+
+				XMLNODE->appendChild(nodeIP);
+				XMLNODE->appendChild(nodePort);
+			}
+
+			if(m_components[i].type == TYPE_TARGET)
+			{
+				nodeSpeed = XMLDOC->createElement((_bstr_t)("speed"));
+
+				nodeVx = XMLDOC->createElement((_bstr_t)("vx"));
+				strTmp.Format("%f", m_components[i].speed.vx);
+				nodeVx->put_text((_bstr_t)strTmp);
+				nodeSpeed->appendChild(nodeVx);
+
+				nodeVy = XMLDOC->createElement((_bstr_t)("vy"));
+				strTmp.Format("%f", m_components[i].speed.vy);
+				nodeVy->put_text((_bstr_t)strTmp);
+				nodeSpeed->appendChild(nodeVy);
+
+				nodeVz = XMLDOC->createElement((_bstr_t)("vz"));
+				strTmp.Format("%f", m_components[i].speed.vz);
+				nodeVz->put_text((_bstr_t)strTmp);
+				nodeSpeed->appendChild(nodeVz);
+
+				XMLNODE->appendChild(nodeSpeed);
+			}
+
+			XMLNODE->appendChild(nodeType);
+			XMLNODE->appendChild(nodeLoc);
+			XMLROOT->appendChild(XMLNODE);
 		}
-
-		XMLNODE->appendChild(nodeType);
-		XMLNODE->appendChild(nodeLoc);
-		XMLROOT->appendChild(XMLNODE);
+		CComVariant FileName(strFile);
+		XMLDOC->save(FileName);
+		XMLNODE.Release();
+		XMLROOT.Release();
+		nodeIP.Release();
+		nodePort.Release();
+		nodeType.Release();
+		nodeLoc.Release();
+		nodeX.Release();
+		nodeY.Release();
+		nodeZ.Release();
+		nodeSpeed.Release();
+		nodeVx.Release();
+		nodeVy.Release();
+		nodeVz.Release();
+		XMLDOC.Release();
+		::CoUninitialize();
 	}
-	CComVariant FileName(strFile);
-	XMLDOC->save(FileName);
-	XMLNODE.Release();
-	XMLROOT.Release();
-	nodeIP.Release();
-	nodePort.Release();
-	nodeType.Release();
-	nodeLoc.Release();
-	nodeX.Release();
-	nodeY.Release();
-	nodeZ.Release();
-	nodeSpeed.Release();
-	nodeVx.Release();
-	nodeVy.Release();
-	nodeVz.Release();
-	XMLDOC.Release();
-	::CoUninitialize();
+	SetFocus();
 }
 
 
@@ -1515,7 +1543,7 @@ void CEnvConsoleDlg::OnDatabaseConnect()
 	try
 	{
 		m_env = Environment::createEnvironment(Environment::THREADED_MUTEXED);
-	}catch(SQLException e)
+	}catch(SQLException &e)
 	{
 		MessageBox(e.what());
 	}
@@ -1529,13 +1557,16 @@ void CEnvConsoleDlg::OnDatabaseConnect()
 		m_conn = m_env->createConnection(name, pass, srvName);
 		MessageBox(_T("Dadatabse connected!"));
 		m_arrOptions[DATABASE_CONNECTED] = 1;
-		m_StatusBar.SetPaneText(3, "  Connected  ");
+		m_StatusBar.GetStatusBarCtrl().SetIcon(3, AfxGetApp()->LoadIconA(IDI_CONNECT));
+
 		m_wndToolBar.SetButtonStyle(2, TBBS_DISABLED);
 		m_wndToolBar.SetButtonStyle(3, TBBS_BUTTON);
 	}
-	catch(SQLException e)
+	catch(SQLException &e)
 	{
-		MessageBox(_T("Failed to connect database!"));
+		CString str;
+		str.Format("%s, Failed to connect database",e.what());
+		MessageBox(str);
 		return ;
 	}
 
@@ -1549,7 +1580,7 @@ void CEnvConsoleDlg::OnDatabaseConnect()
 							Interference float(126), \
 							ClutterRCS float(126) )"
 							);
-	}catch(SQLException e)
+	}catch(SQLException &e)
 	{
 		int r = stmt->executeUpdate("delete from CONF");
 		CString str;
@@ -1565,10 +1596,9 @@ void CEnvConsoleDlg::OnDatabaseConnect()
 							STORAGE  ( INITIAL 100M NEXT 50M \
 										MINEXTENTS 1 MAXEXTENTS 50 PCTINCREASE 5)"
 							);
-	}catch(SQLException e)
+	}catch(SQLException &e)
 	{
 		MessageBox(e.what());
-		int r = stmt->executeUpdate("delete from EnvData");
 	}
 
 	stmt->executeUpdate("insert into CONF values ('land', 0.67, 1.90, 6.43, 1.84)");
@@ -1586,7 +1616,7 @@ void CEnvConsoleDlg::OnDatabaseDisconnect()
 		m_env = NULL;
 		m_conn = NULL;
 		m_arrOptions[DATABASE_CONNECTED] = 0;
-		m_StatusBar.SetPaneText(3, "  Disconnected  ");
+		m_StatusBar.GetStatusBarCtrl().SetIcon(3, AfxGetApp()->LoadIconA(IDI_DISCONNECT));
 		m_wndToolBar.SetButtonStyle(2, TBBS_BUTTON);
 		m_wndToolBar.SetButtonStyle(3, TBBS_DISABLED);
 	}
@@ -1613,7 +1643,7 @@ void CEnvConsoleDlg::OnUpdateDatabaseConnect(CCmdUI *pCmdUI)
 }
 
 
-void CEnvConsoleDlg::OnInitMenuPopup(CMenu* pPopupMenu, UINT nIndex, BOOL bSysMenu)
+void CEnvConsoleDlg::OnInitMenuPopup(CMenu* pPopupMenu, UINT /*nIndex*/, BOOL /*bSysMenu*/)
 {
 	ENSURE_VALID(pPopupMenu);
 
@@ -1694,14 +1724,6 @@ void CEnvConsoleDlg::OnInitMenuPopup(CMenu* pPopupMenu, UINT nIndex, BOOL bSysMe
 	}
 }
 
-
-//void CEnvConsoleDlg::OnMouseHover(UINT nFlags, CPoint point)
-//{
-//	// TODO: Add your message handler code here and/or call default
-//		CDialogEx::OnMouseHover(nFlags, point);
-//}
-
-
 void CEnvConsoleDlg::OnMouseMove(UINT nFlags, CPoint point)
 {
 	// TODO: Add your message handler code here and/or call default
@@ -1755,7 +1777,6 @@ void CEnvConsoleDlg::OnRuler()
 
 void CEnvConsoleDlg::OnUpdateRuler(CCmdUI *pCmdUI)
 {
-	// TODO: Add your command update UI handler code here
 	if(m_arrOptions[ARROW_ON])
 	{	
 		pCmdUI->SetCheck(1);
@@ -1769,7 +1790,6 @@ void CEnvConsoleDlg::OnUpdateRuler(CCmdUI *pCmdUI)
 
 void CEnvConsoleDlg::OnUpdateTargetLocation(CCmdUI *pCmdUI)
 {
-	// TODO: Add your command update UI handler code here
 	if(m_arrOptions[TARGET_LOCATION] == 1)
 		pCmdUI->SetCheck(1);
 	else
@@ -1779,7 +1799,6 @@ void CEnvConsoleDlg::OnUpdateTargetLocation(CCmdUI *pCmdUI)
 
 void CEnvConsoleDlg::OnUpdateRadarLocation(CCmdUI *pCmdUI)
 {
-	// TODO: Add your command update UI handler code here
 	if(m_arrOptions[RADAR_LOCATION] == 1)
 		pCmdUI->SetCheck(1);
 	else
@@ -1789,7 +1808,6 @@ void CEnvConsoleDlg::OnUpdateRadarLocation(CCmdUI *pCmdUI)
 
 void CEnvConsoleDlg::OnUpdateStaticLocation(CCmdUI *pCmdUI)
 {
-	// TODO: Add your command update UI handler code here
 	if(m_arrOptions[STATIC_LOCATION] == 1)
 		pCmdUI->SetCheck(1);
 	else
@@ -1799,14 +1817,139 @@ void CEnvConsoleDlg::OnUpdateStaticLocation(CCmdUI *pCmdUI)
 
 void CEnvConsoleDlg::OnDatabaseConfiguration()
 {
-	// TODO: Add your command handler code here
 	DBOptions DBdlg;
 	DBdlg.DoModal();
 }
 
 
-afx_msg LRESULT CEnvConsoleDlg::OnProgress(WPARAM wParam, LPARAM lParam)
+afx_msg LRESULT CEnvConsoleDlg::OnProgress(WPARAM /*wParam*/, LPARAM /*lParam*/)
 {
 	m_progress.StepIt();
 	return 0;
+}
+
+
+void CEnvConsoleDlg::OnFileImport()
+{
+	SendMessage(WM_COMMAND, MAKEWPARAM(IDC_IMPORT, BN_CLICKED), NULL);
+}
+
+
+void CEnvConsoleDlg::OnFileExport()
+{
+	SendMessage(WM_COMMAND, MAKEWPARAM(IDC_EXPORT, BN_CLICKED), NULL);
+}
+
+
+void CEnvConsoleDlg::OnUpdateFileExport(CCmdUI *pCmdUI)
+{
+	if(m_components.size() == 0)
+		pCmdUI->Enable(FALSE);
+	else 
+		pCmdUI->Enable(TRUE);
+
+}
+
+
+void CEnvConsoleDlg::OnFileClearall()
+{
+	m_components.clear();
+	UpdateList();
+	InvalidateRect(&m_canvas);
+}
+
+
+void CEnvConsoleDlg::OnDatabaseUpload()
+{
+	Statement *stmt = m_conn->createStatement();
+	try
+	{
+		stmt->executeUpdate("create table RADAR_LIST \
+							(ID number(10), \
+							location_x float(126), \
+							location_y float(126), \
+							location_z float(126), \
+							ip	varchar2(100), \
+							port number(10))");
+	}
+	catch (SQLException &e)
+	{
+		int r = stmt->executeUpdate("delete from RADAR_LIST");
+		CString str;
+		str.Format("%s %d rows deleted.",e.what(), r);
+		MessageBox(str);
+	}
+
+	for(std::size_t i = 0;i < m_iRadarIdx.size();i++)
+	{
+		int idx = m_iRadarIdx[i];
+		CString sql;
+		sql.Format("insert into RADAR_LIST values(%d, %f, %f, %f, '%s', %d)",
+					m_components[idx].no,
+					m_components[idx].loc.x,
+					m_components[idx].loc.y,
+					m_components[idx].loc.z,
+					m_components[idx].ip.GetBuffer(),
+					m_components[idx].host);
+		try
+		{
+			stmt->executeUpdate(sql.GetBuffer());
+		}catch(SQLException &e)
+		{
+			MessageBox(e.what());
+		}
+	}
+	m_conn->commit();
+	m_conn->terminateStatement(stmt);
+	
+}
+
+
+void CEnvConsoleDlg::OnUpdateDatabaseUpload(CCmdUI *pCmdUI)
+{
+	if(!m_arrOptions[DATABASE_CONNECTED])
+		pCmdUI->Enable(FALSE);
+	else
+		pCmdUI->Enable(TRUE);
+}
+
+
+void CEnvConsoleDlg::OnDatabaseDownload()
+{
+	CString query = "select * from RADAR_LIST where ID = ";
+	Statement *stmt = m_conn->createStatement();
+	for(std::size_t i = 0;i < m_iRadarIdx.size();i++)
+	{
+		int idx = m_iRadarIdx[i];
+		query.Format("select * from RADAR_LIST where ID = %d", m_components[idx].no);
+		try
+		{
+			ResultSet *rs = stmt->executeQuery(query.GetBuffer());
+			while(rs->next())
+			{
+				m_components[idx].loc.x = rs->getFloat(2);
+				m_components[idx].loc.y = rs->getFloat(3);
+				m_components[idx].loc.z = rs->getFloat(4);
+				std::string ip = rs->getString(5);
+				m_components[idx].ip.Format("%s", ip.c_str());
+				m_components[idx].host = rs->getInt(6);
+			}
+		}
+		catch (SQLException &e)
+		{
+			MessageBox(e.what());
+		}
+	}
+	MessageBox(_T("Download success!"));
+	UpdateList();
+	InvalidateRect(&m_canvas);
+}
+
+
+void CEnvConsoleDlg::OnUpdateDatabaseDownload(CCmdUI *pCmdUI)
+{
+	if(!m_arrOptions[DATABASE_CONNECTED])
+		pCmdUI->Enable(FALSE);
+	else
+		pCmdUI->Enable(TRUE);
 }

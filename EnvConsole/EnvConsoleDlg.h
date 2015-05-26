@@ -18,7 +18,7 @@ enum{STATE_DISCONNECTED = 0, STATE_CONNECTED};
 enum{HIDE_STATIC_OBJ = 0, TARGET_LOCATION, RADAR_LOCATION , STATIC_LOCATION, DATABASE_CONNECTED, ARROW_ON, HIDE_CURSOR, NUM};
 enum{EVENT_SIM = 1, EVENT_CLOCK};
 
-static UINT BASED_CODE indicators[]=   
+static UINT BASED_CODE indicators[] =   
 {
 	ID_SEPARATOR,
 	ID_INDICATOR_PROGRESS,
@@ -235,4 +235,13 @@ private:
 	CProgressCtrl m_progress;
 protected:
 	afx_msg LRESULT OnProgress(WPARAM wParam, LPARAM lParam);
+public:
+	afx_msg void OnFileImport();
+	afx_msg void OnFileExport();
+	afx_msg void OnUpdateFileExport(CCmdUI *pCmdUI);
+	afx_msg void OnFileClearall();
+	afx_msg void OnDatabaseUpload();
+	afx_msg void OnUpdateDatabaseUpload(CCmdUI *pCmdUI);
+	afx_msg void OnDatabaseDownload();
+	afx_msg void OnUpdateDatabaseDownload(CCmdUI *pCmdUI);
 };
