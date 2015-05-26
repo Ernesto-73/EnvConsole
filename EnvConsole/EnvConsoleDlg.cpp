@@ -78,7 +78,7 @@ CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 
 	// Initialize window size.
 	this->m_large = CRect(0, 0, 980, 650);
-	this->m_small = CRect(0, 0, 525, 615);
+	this->m_small = CRect(0, 0, 525, 650);
 	this->m_canvas = CRect(10, 30, 510, 530);
 
 	// Initialize options array.
@@ -740,7 +740,7 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 	}
 	
 	pen.DeleteObject();
-	pen.CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
+	pen.CreatePen(PS_SOLID, 1, RGB(240, 100, 0));
 	pDC->SelectObject(&pen);
 	if(m_arrOptions[ARROW_ON])
 	{
