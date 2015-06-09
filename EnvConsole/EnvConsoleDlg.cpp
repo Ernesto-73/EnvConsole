@@ -633,6 +633,7 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 	}
 
 	// Restore Pen
+	font.DeleteObject();
 	font.CreatePointFont(90, "Monaco", NULL);
 	pDC->SelectObject(&font);
 
