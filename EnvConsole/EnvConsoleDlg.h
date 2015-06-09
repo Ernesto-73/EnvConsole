@@ -15,7 +15,7 @@
 using namespace oracle::occi;;
 
 enum{STATE_DISCONNECTED = 0, STATE_CONNECTED};
-enum{HIDE_STATIC_OBJ = 0, TARGET_LOCATION, RADAR_LOCATION , STATIC_LOCATION, DATABASE_CONNECTED, ARROW_ON, HIDE_CURSOR, NUM};
+enum{HIDE_STATIC_OBJ = 0, TARGET_LOCATION, RADAR_LOCATION , STATIC_LOCATION, DATABASE_CONNECTED, ARROW_ON, HIDE_CURSOR, DRAW_GRIDS, NUM};
 enum{EVENT_SIM = 1, EVENT_CLOCK};
 
 static UINT BASED_CODE indicators[] =   
@@ -98,10 +98,10 @@ typedef struct TComponent{
 		speed.vz = t.vz;
 	}
 	
-	void Move()
+	void Move(int Elapse)
 	{
-		loc.x += speed.vx;
-		loc.y += speed.vy;
+		loc.x += speed.vx * Elapse / 1000.;
+		loc.y += speed.vy * Elapse / 1000.;
 	}
 
 	int no;
@@ -244,4 +244,6 @@ public:
 	afx_msg void OnUpdateDatabaseUpload(CCmdUI *pCmdUI);
 	afx_msg void OnDatabaseDownload();
 	afx_msg void OnUpdateDatabaseDownload(CCmdUI *pCmdUI);
+	int m_nElapse;
+	afx_msg void OnDrawGrids();
 };

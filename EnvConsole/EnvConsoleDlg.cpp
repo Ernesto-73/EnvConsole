@@ -64,6 +64,7 @@ CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 	, m_env(NULL)
 	, m_conn(NULL)
 	, m_mouseLoc(0)
+	, m_nElapse(100)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAP);
 	m_font.CreatePointFont(80, "Verdana", NULL);
@@ -84,6 +85,7 @@ CEnvConsoleDlg::CEnvConsoleDlg(CWnd* pParent /*=NULL*/)
 	// Initialize options array.
 	memset(m_arrOptions, 0, sizeof(int) * NUM);
 	m_arrOptions[TARGET_LOCATION] = 1;
+	m_arrOptions[DRAW_GRIDS] = 1;
 }
 
 void CEnvConsoleDlg::DoDataExchange(CDataExchange* pDX)
@@ -162,6 +164,7 @@ BEGIN_MESSAGE_MAP(CEnvConsoleDlg, CDialogEx)
 	ON_UPDATE_COMMAND_UI(ID_DATABASE_UPLOAD, &CEnvConsoleDlg::OnUpdateDatabaseUpload)
 	ON_COMMAND(ID_DATABASE_DOWNLOAD, &CEnvConsoleDlg::OnDatabaseDownload)
 	ON_UPDATE_COMMAND_UI(ID_DATABASE_DOWNLOAD, &CEnvConsoleDlg::OnUpdateDatabaseDownload)
+	ON_COMMAND(ID_DRAW_GRIDS, &CEnvConsoleDlg::OnDrawGrids)
 END_MESSAGE_MAP()
 
 
@@ -207,9 +210,11 @@ BOOL CEnvConsoleDlg::OnInitDialog()
 		TRACE0("Failed to craete tool bar\n");
 		return -1;
 	}
-	m_wndToolBar.SetButtonStyle(0,TBBS_CHECKBOX);
+
 	m_wndToolBar.SetButtonStyle(1,TBBS_CHECKBOX);
+	m_wndToolBar.SetButtonStyle(2,TBBS_CHECKBOX);
 	m_wndToolBar.SetButtonStyle(3, TBBS_DISABLED);
+	m_wndToolBar.SetButtonStyle(4, TBBS_CHECKED);
 
 	m_StatusBar.CreateEx(this,SBT_TOOLTIPS,WS_CHILD | WS_VISIBLE | CBRS_BOTTOM,AFX_IDW_STATUS_BAR );
 	m_StatusBar.SetIndicators(indicators,sizeof(indicators)/sizeof(UINT));
@@ -579,28 +584,9 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 	CRect r;
 	GetClientRect(&r);
 	pDC->FillSolidRect(&r,RGB(0, 0, 0));
-
-	// Set the text position
-	int tx = 340;
-	int ty = 480;
-
-	// Set font size && color
-	TEXTMETRIC tm;
-	pDC->GetTextMetrics(&tm);
-	pDC->SetTextColor(RGB(255, 255, 255));
 	CString str;
-	str.Format("Simulation Time: %d s", m_time);
 
-	CFont font;
-	font.CreatePointFont(90, "Monaco", NULL);
-	CFont *oFont = pDC->SelectObject(&font);
-	font.Detach();
-
-	// Set font text background color
-	pDC->SetBkColor(RGB(0, 0, 0));
-	pDC->TextOut(tx, ty, str);
-
-	CPen pen(PS_SOLID, 1, RGB(0, 255, 0));
+	CPen pen(PS_SOLID, 1, RGB(0, 0, 0));
 	CPen *oPen = pDC->SelectObject(&pen);
 	CBrush brush(RGB(0, 0, 0));
 	CBrush *oBrush = pDC->SelectObject(&brush);
@@ -617,6 +603,53 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 
 	pDC->MoveTo(499, 0);
 	pDC->LineTo(499, 499);
+
+	// Draw grids
+	CFont font;
+	font.CreateFont(14, 7, -100, 0, 10, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_ROMAN, "Verdana");	
+	CFont *oFont = pDC->SelectObject(&font);
+	pDC->SetTextColor(RGB(255, 255, 255));
+
+	if(m_arrOptions[DRAW_GRIDS])
+	{
+		pen.DeleteObject();
+		pen.CreatePen(PS_DOT, 1, RGB(0, 150, 0));
+		pDC->SelectObject(&pen);
+
+		str = "0";
+		pDC->TextOut(5, 5, str);
+		for(int i = 1;i < 10;i++)
+		{
+			str.Format("%.0f", i * m_iMapScale * 50. / 10);
+			pDC->TextOut(5, i * 50 - 1, str);
+			pDC->TextOut(i * 50+5, 5, str);
+
+			pDC->MoveTo(0, i * 50 - 1);
+			pDC->LineTo(499, i * 50 - 1);
+
+			pDC->MoveTo(i * 50 - 1, 0);
+			pDC->LineTo(i * 50 - 1, 499);
+		}
+	}
+
+	// Restore Pen
+	font.CreatePointFont(90, "Monaco", NULL);
+	pDC->SelectObject(&font);
+
+	// Set the text position
+	int tx = 340;
+	int ty = 480;
+
+	// Set font size && color
+	TEXTMETRIC tm;
+	pDC->GetTextMetrics(&tm);
+
+
+	str.Format("Simulation Time: %d s", m_time);
+
+	// Set font text background color
+	pDC->SetBkColor(RGB(0, 0, 0));
+	pDC->TextOut(tx, ty, str);
 
 	// Draw static objects
 	pen.DeleteObject();
@@ -723,7 +756,7 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 
 	// Draw selected objects.
 	pen.DeleteObject();
-	pen.CreatePen(PS_SOLID, 1, RGB(200, 100, 0));
+	pen.CreatePen(PS_SOLID, 1, RGB(200, 150, 0));
 	pDC->SelectObject(&pen);
 
 	CBrush *b = CBrush::FromHandle( (HBRUSH)GetStockObject(NULL_BRUSH));
@@ -731,11 +764,42 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 
 	if(m_iSelected != -1)
 	{
+	/*
 		CRect rt(static_cast<int>(m_components[m_iSelected].loc.x / m_iMapScale) - 15, 
 			static_cast<int>(m_components[m_iSelected].loc.y / m_iMapScale) - 15, 
 			static_cast<int>(m_components[m_iSelected].loc.x / m_iMapScale) + 15,
 			static_cast<int>(m_components[m_iSelected].loc.y / m_iMapScale) + 15);
 		pDC->Ellipse(rt);
+	*/
+		int x = (int)m_components[m_iSelected].loc.x / m_iMapScale;
+		int y = (int)m_components[m_iSelected].loc.y / m_iMapScale;
+
+		int a = 10;
+		int b = 5;
+
+		pDC->MoveTo(x - a, y - a);
+		pDC->LineTo(x - a, y - b);
+
+		pDC->MoveTo(x - a, y - a);
+		pDC->LineTo(x - b, y - a);
+
+		pDC->MoveTo(x + a, y - a);
+		pDC->LineTo(x + a, y - b);
+
+		pDC->MoveTo(x + a, y - a);
+		pDC->LineTo(x + b, y - a);
+
+		pDC->MoveTo(x + a, y + a);
+		pDC->LineTo(x + a, y + b);
+
+		pDC->MoveTo(x + a, y + a);
+		pDC->LineTo(x + b, y + a);
+
+		pDC->MoveTo(x - a, y + a);
+		pDC->LineTo(x - a, y + b);
+
+		pDC->MoveTo(x - a, y + a);
+		pDC->LineTo(x - b, y + a);
 	}
 	
 	// Arrow
@@ -748,28 +812,6 @@ void CEnvConsoleDlg::Draw(CDC * pDC)
 		pDC->LineTo(m_mouseLoc.x, 500);
 		pDC->MoveTo(0, m_mouseLoc.y);
 		pDC->LineTo(500, m_mouseLoc.y);
-	}
-
-	// Draw grids
-	pen.DeleteObject();
-	pen.CreatePen(PS_DOT, 1, RGB(0, 255, 0));
-	pDC->SelectObject(&pen);
-
-	font.CreateFont(14, 7, -100, 0, 10, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_ROMAN, "Verdana");	
-	pDC->SelectObject(&font);
-	str = "0";
-	pDC->TextOut(5, 5, str);
-	for(int i = 1;i < 10;i++)
-	{
-		str.Format("%.0f", i * m_iMapScale * 50. / 10);
-		pDC->TextOut(5, i * 50 - 1, str);
-		pDC->TextOut(i * 50+5, 5, str);
-
-		pDC->MoveTo(0, i * 50 - 1);
-		pDC->LineTo(499, i * 50 - 1);
-
-		pDC->MoveTo(i * 50 - 1, 0);
-		pDC->LineTo(i * 50 - 1, 499);
 	}
 
 	pDC->SelectObject(oFont);
@@ -836,7 +878,7 @@ void CEnvConsoleDlg::OnBnClickedStart()
 				return ;
 		}
 	
-		SetTimer(EVENT_SIM, 100, NULL);
+		SetTimer(EVENT_SIM, m_nElapse, NULL);
 		m_bIsStarted = true;
 		m_btnStart.SetWindowTextA("Stop");
 		m_btnDisconnect.EnableWindow(FALSE);
@@ -864,7 +906,7 @@ void CEnvConsoleDlg::OnTimer(UINT_PTR nIDEvent)
 	}
 
 	for(int i = 0;i < (int)m_iTargetIdx.size();++i)
-		m_components[m_iTargetIdx[i]].Move();
+		m_components[m_iTargetIdx[i]].Move(m_nElapse);
 
 	for(int k = 0;k < (int)m_iRadarIdx.size();k++)
 	{
@@ -1952,4 +1994,20 @@ void CEnvConsoleDlg::OnUpdateDatabaseDownload(CCmdUI *pCmdUI)
 		pCmdUI->Enable(FALSE);
 	else
 		pCmdUI->Enable(TRUE);
+}
+
+
+void CEnvConsoleDlg::OnDrawGrids()
+{
+	// TODO: Add your command handler code here
+	if(m_arrOptions[DRAW_GRIDS] == 0)
+	{
+		m_arrOptions[DRAW_GRIDS] = 1;
+		m_wndToolBar.SetButtonStyle(4, TBBS_CHECKED);
+	}
+	else{
+		m_arrOptions[DRAW_GRIDS] = 0;
+		m_wndToolBar.SetButtonStyle(4, TBBS_BUTTON);
+	}
+	InvalidateRect(&m_canvas);
 }
