@@ -1591,8 +1591,8 @@ void CEnvConsoleDlg::OnDatabaseConnect()
 		MessageBox(e.what());
 	}
 
-	std::string name = "scott";
-	std::string pass = "zh2348";
+	std::string name = "";
+	std::string pass = "";
 	std::string srvName = "10.106.3.128:1521/ORCL";
 
 	try
